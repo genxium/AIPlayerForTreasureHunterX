@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "supertest": "^3.4.2",
+    "ws": "^6.1.3"
+  }
+}

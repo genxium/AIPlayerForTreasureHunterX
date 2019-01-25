@@ -1,0 +1,8 @@
+node_modules
+node_modules/*
+*/node_modules/*
+*.rdb
+*.sw*
+*.swo
+*.swp
+*.sqlite
