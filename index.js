@@ -15,7 +15,7 @@ function gameStart() {
     .then(resp => {
       const wsManagerIns = new wsManager(resp)
       wsManagerIns.initPersistentSessionClient(() => {
-        console.log("initPersistentSessionClient success")
+        console.log("connect success!")
       })
     })
   })
@@ -25,3 +25,4 @@ function gameStart() {
 }
 
 gameStart()
+

@@ -1,5 +1,7 @@
 {
   "dependencies": {
+    "atob": "^2.1.2",
+    "protobufjs": "^6.8.8",
     "supertest": "^3.4.2",
     "ws": "^6.1.3"
   }

@@ -1,20 +1,35 @@
 const WebSocket = require('ws');
 const serverConfig = require("./serverConfig")
 const constants = require("./constants")
+const protobuf = require('protobufjs');
+const atob = require('atob');
+
 
 class WsManager {
   constructor(props) {
+    const instance = this;
     this.boundRoomId = null;
+    this.selfPlayerInfo = props;
+    this.recentFrameCacheCurrentSize = 0;
+    this.recentFrameCacheMaxCount = 2048;
+    this.recentFrameCache = {};
     this.intAuthToken = props.intAuthToken;
+    this.ALL_BATTLE_STATES = {
+      WAITING: 0,
+      IN_BATTLE: 1,
+      IN_SETTLEMENT: 2,
+      IN_DISMISSAL: 3,
+    };
+    protobuf.load("./room_downsync_frame.proto", function(err, root) {
+      if (err) {
+        console.log(err)
+      }
+      instance.RoomDownsyncFrame = root.lookupType("models.RoomDownsyncFrame");
+    })
   }
 
   sendSafely(msgStr) {
     const instance = this;
-    /**
-    * - "If the data can't be sent (for example, because it needs to be buffered but the buffer is full), the socket is closed automatically."
-    *
-    * from https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/send.
-    */
     if (null == instance.clientSession || instance.clientSession.readyState != WebSocket.OPEN) return false;
     instance.clientSession.send(msgStr);
   }
@@ -27,6 +42,7 @@ class WsManager {
   }
 
   handleHbRequirements(resp) {
+    console.log(resp)
     const instance = this;
     if (constants.RET_CODE.OK != resp.ret) return;
     if (null == instance.boundRoomId) {
@@ -99,6 +115,7 @@ class WsManager {
           if (instance.handleRoomDownsyncFrame) {
             const typedArray = _base64ToUint8Array(resp.data);
             const parsedRoomDownsyncFrame = instance.RoomDownsyncFrame.decode(typedArray);
+            console.log("parsedRoomDownsyncFrame" + JSON.stringify(parsedRoomDownsyncFrame))
             instance.handleRoomDownsyncFrame(parsedRoomDownsyncFrame);
           }
           break;
@@ -153,12 +170,283 @@ class WsManager {
       }
     };
   };
+
+  handleRoomDownsyncFrame(diffFrame) {
+    const self = this;
+    const ALL_BATTLE_STATES = self.ALL_BATTLE_STATES;
+    if (ALL_BATTLE_STATES.WAITING != self.battleState && ALL_BATTLE_STATES.IN_BATTLE != self.battleState && ALL_BATTLE_STATES.IN_SETTLEMENT != self.battleState) return;
+    const refFrameId = diffFrame.refFrameId;
+    if (-99 == refFrameId) { //显示倒计时
+      //removed
+    } else if (-98 == refFrameId) { //显示匹配玩家
+      //removed
+    }
+    const frameId = diffFrame.id;
+    if (frameId <= self.lastRoomDownsyncFrameId) {
+      // Log the obsolete frames?
+      return;
+    }
+    const isInitiatingFrame = (0 > self.recentFrameCacheCurrentSize || 0 == refFrameId);
+    const cachedFullFrame = self.recentFrameCache[refFrameId];
+
+    if (isInitiatingFrame && 0 == refFrameId) {
+      self._onResyncCompleted();
+    }
+    let countdownNanos = diffFrame.countdownNanos;
+    if (countdownNanos < 0)
+      countdownNanos = 0;
+    const countdownSeconds = parseInt(countdownNanos / 1000000000);
+    if (isNaN(countdownSeconds)) {
+      cc.log(`countdownSeconds is NaN for countdownNanos == ${countdownNanos}.`);
+    }
+    self.countdownLabel.string = countdownSeconds;
+    const roomDownsyncFrame = (
+    (isInitiatingFrame)
+      ?
+      diffFrame
+      :
+      self._generateNewFullFrame(cachedFullFrame, diffFrame)
+    );
+    if (countdownNanos <= 0) {
+      self.onBattleStopped(roomDownsyncFrame.players);
+      return;
+    }
+    self._dumpToFullFrameCache(roomDownsyncFrame);
+    const sentAt = roomDownsyncFrame.sentAt;
+
+
+    //update players Info
+    const players = roomDownsyncFrame.players;
+    const playerIdStrList = Object.keys(players);
+    self.otherPlayerCachedDataDict = {};
+    for (let i = 0; i < playerIdStrList.length; ++i) {
+      const k = playerIdStrList[i];
+      const playerId = parseInt(k);
+      if (playerId == self.selfPlayerInfo.id) {
+        const immediateSelfPlayerInfo = players[k];
+        Object.assign(self.selfPlayerInfo, {
+          x: immediateSelfPlayerInfo.x,
+          y: immediateSelfPlayerInfo.y,
+          speed: immediateSelfPlayerInfo.speed,
+          battleState: immediateSelfPlayerInfo.battleState,
+          score: immediateSelfPlayerInfo.score,
+          joinIndex: immediateSelfPlayerInfo.joinIndex,
+        });
+        continue;
+      }
+      const anotherPlayer = players[k];
+      self.otherPlayerCachedDataDict[playerId] = anotherPlayer;
+    }
+
+    //update pumpkin Info 
+    self.pumpkinInfoDict = {};
+    const pumpkin = roomDownsyncFrame.pumpkin;
+    const pumpkinsLocalIdStrList = Object.keys(pumpkin);
+    for (let i = 0; i < pumpkinsLocalIdStrList.length; ++i) {
+      const k = pumpkinsLocalIdStrList[i];
+      const pumpkinLocalIdInBattle = parseInt(k);
+      const pumpkinInfo = pumpkin[k];
+      self.pumpkinInfoDict[pumpkinLocalIdInBattle] = pumpkinInfo;
+    }
+    
+
+    //update treasureInfoDict
+    self.treasureInfoDict = {};
+    const treasures = roomDownsyncFrame.treasures;
+    const treasuresLocalIdStrList = Object.keys(treasures);
+    for (let i = 0; i < treasuresLocalIdStrList.length; ++i) {
+      const k = treasuresLocalIdStrList[i];
+      const treasureLocalIdInBattle = parseInt(k);
+      const treasureInfo = treasures[k];
+      self.treasureInfoDict[treasureLocalIdInBattle] = treasureInfo;
+    }
+
+    //update acceleratorInfoDict
+    self.acceleratorInfoDict = {};
+    const accelartors = roomDownsyncFrame.speedShoes;
+    const accLocalIdStrList = Object.keys(accelartors);
+    for (let i = 0; i < accLocalIdStrList.length; ++i) {
+      const k = accLocalIdStrList[i];
+      const accLocalIdInBattle = parseInt(k);
+      const accInfo = accelartors[k];
+      self.acceleratorInfoDict[accLocalIdInBattle] = accInfo;
+    }
+
+    //update trapInfoDict
+    self.trapInfoDict = {};
+    const traps = roomDownsyncFrame.traps;
+    const trapsLocalIdStrList = Object.keys(traps);
+    for (let i = 0; i < trapsLocalIdStrList.length; ++i) {
+      const k = trapsLocalIdStrList[i];
+      const trapLocalIdInBattle = parseInt(k);
+      const trapInfo = traps[k];
+      self.trapInfoDict[trapLocalIdInBattle] = trapInfo;
+    }
+
+    self.trapBulletInfoDict = {};
+    const bullets = roomDownsyncFrame.bullets;
+    const bulletsLocalIdStrList = Object.keys(bullets);
+    for (let i = 0; i < bulletsLocalIdStrList.length; ++i) {
+      const k = bulletsLocalIdStrList[i];
+      const bulletLocalIdInBattle = parseInt(k);
+      const bulletInfo = bullets[k];
+      self.trapBulletInfoDict[bulletLocalIdInBattle] = bulletInfo;
+    }
+
+    if (0 == self.lastRoomDownsyncFrameId) {
+      instance.battleState = ALL_BATTLE_STATES.IN_BATTLE;
+      if (1 == frameId) {
+        console.log("game start")
+      }
+      self.onBattleStarted();
+    }
+    self.lastRoomDownsyncFrameId = frameId;
+  };
+  transitToState(s) {
+    const self = this;
+    self.state = s;
+  }
+  
+  _dumpToFullFrameCache (fullFrame) {
+    const self = this;
+    while (self.recentFrameCacheCurrentSize >= self.recentFrameCacheMaxCount) {
+      // Trick here: never evict the "Zero-th Frame" for resyncing!
+      const toDelFrameId = Object.keys(self.recentFrameCache)[1];
+      // cc.log("toDelFrameId is " + toDelFrameId + ".");
+      delete self.recentFrameCache[toDelFrameId];
+      --self.recentFrameCacheCurrentSize;
+    }
+    self.recentFrameCache[fullFrame.id] = fullFrame;
+    ++self.recentFrameCacheCurrentSize;
+  }
+
+  _onResyncCompleted() {
+    if (false == this.resyncing) return;
+    cc.log(`_onResyncCompleted`);
+    this.resyncing = false;
+    if (null != this.resyncingHintPopup && this.resyncingHintPopup.parent) {
+      this.resyncingHintPopup.parent.removeChild(this.resyncingHintPopup);
+    }
+  }
+
+  _generateNewFullFrame(refFullFrame, diffFrame) {
+    let newFullFrame = {
+      id: diffFrame.id,
+      treasures: refFullFrame.treasures,
+      traps: refFullFrame.traps,
+      bullets: refFullFrame.bullets,
+      players: refFullFrame.players,
+      speedShoes: refFullFrame.speedShoes,
+      pumpkin: refFullFrame.pumpkin,
+    };
+    const players = diffFrame.players;
+    const playersLocalIdStrList = Object.keys(players);
+    for (let i = 0; i < playersLocalIdStrList.length; ++i) {
+      const k = playersLocalIdStrList[i];
+      const playerId = parseInt(k);
+      if (true == diffFrame.players[playerId].removed) {
+        // cc.log(`Player id == ${playerId} is removed.`);
+        delete newFullFrame.players[playerId];
+      } else {
+        newFullFrame.players[playerId] = diffFrame.players[playerId];
+      }
+    }
+
+    const pumpkin = diffFrame.pumpkin;
+    const pumpkinsLocalIdStrList = Object.keys(pumpkin);
+    for (let i = 0; i < pumpkinsLocalIdStrList.length; ++i) {
+      const k = pumpkinsLocalIdStrList[i];
+      const pumpkinLocalIdInBattle = parseInt(k);
+      if (true == diffFrame.pumpkin[pumpkinLocalIdInBattle].removed) {
+        delete newFullFrame.pumpkin[pumpkinLocalIdInBattle];
+      } else {
+        newFullFrame.pumpkin[pumpkinLocalIdInBattle] = diffFrame.pumpkin[pumpkinLocalIdInBattle];
+      }
+    }
+
+    const treasures = diffFrame.treasures;
+    const treasuresLocalIdStrList = Object.keys(treasures);
+    for (let i = 0; i < treasuresLocalIdStrList.length; ++i) {
+      const k = treasuresLocalIdStrList[i];
+      const treasureLocalIdInBattle = parseInt(k);
+      if (true == diffFrame.treasures[treasureLocalIdInBattle].removed) {
+        // cc.log(`Treasure with localIdInBattle == ${treasureLocalIdInBattle} is removed.`);
+        delete newFullFrame.treasures[treasureLocalIdInBattle];
+      } else {
+        newFullFrame.treasures[treasureLocalIdInBattle] = diffFrame.treasures[treasureLocalIdInBattle];
+      }
+    }
+
+    const speedShoes = diffFrame.speedShoes;
+    const speedShoesLocalIdStrList = Object.keys(speedShoes);
+    for (let i = 0; i < speedShoesLocalIdStrList.length; ++i) {
+      const k = speedShoesLocalIdStrList[i];
+      const speedShoesLocalIdInBattle = parseInt(k);
+      if (true == diffFrame.speedShoes[speedShoesLocalIdInBattle].removed) {
+        // cc.log(`Treasure with localIdInBattle == ${treasureLocalIdInBattle} is removed.`);
+        delete newFullFrame.speedShoes[speedShoesLocalIdInBattle];
+      } else {
+        newFullFrame.speedShoes[speedShoesLocalIdInBattle] = diffFrame.speedShoes[speedShoesLocalIdInBattle];
+      }
+    }
+
+    const traps = diffFrame.traps;
+    const trapsLocalIdStrList = Object.keys(traps);
+    for (let i = 0; i < trapsLocalIdStrList.length; ++i) {
+      const k = trapsLocalIdStrList[i];
+      const trapLocalIdInBattle = parseInt(k);
+      if (true == diffFrame.traps[trapLocalIdInBattle].removed) {
+        // cc.log(`Trap with localIdInBattle == ${trapLocalIdInBattle} is removed.`);
+        delete newFullFrame.traps[trapLocalIdInBattle];
+      } else {
+        newFullFrame.traps[trapLocalIdInBattle] = diffFrame.traps[trapLocalIdInBattle];
+      }
+    }
+
+    const bullets = diffFrame.bullets;
+    const bulletsLocalIdStrList = Object.keys(bullets);
+    for (let i = 0; i < bulletsLocalIdStrList.length; ++i) {
+      const k = bulletsLocalIdStrList[i];
+      const bulletLocalIdInBattle = parseInt(k);
+      if (true == diffFrame.bullets[bulletLocalIdInBattle].removed) {
+        cc.log(`Bullet with localIdInBattle == ${bulletLocalIdInBattle} is removed.`);
+        delete newFullFrame.bullets[bulletLocalIdInBattle];
+      } else {
+        newFullFrame.bullets[bulletLocalIdInBattle] = diffFrame.bullets[bulletLocalIdInBattle];
+      }
+    }
+
+    const accs = diffFrame.speedShoes;
+    const accsLocalIdStrList = Object.keys(accs);
+    for (let i = 0; i < accsLocalIdStrList.length; ++i) {
+      const k = accsLocalIdStrList[i];
+      const accLocalIdInBattle = parseInt(k);
+      if (true == diffFrame.speedShoes[accLocalIdInBattle].removed) {
+        delete newFullFrame.speedShoes[accLocalIdInBattle];
+      } else {
+        newFullFrame.speedShoes[accLocalIdInBattle] = diffFrame.speedShoes[accLocalIdInBattle];
+      }
+    }
+    return newFullFrame;
+  }
+  onBattleStopped(players) {
+    const self = this;
+    self.battleState = ALL_BATTLE_STATES.IN_SETTLEMENT;
+  }
+  onBattleStarted() {
+    const self = this;
+    if (self.musicEffectManagerScriptIns)
+      self.musicEffectManagerScriptIns.playBGM();
+    self.spawnSelfPlayer();
+    self.upsyncLoopInterval = setInterval(self._onPerUpsyncFrame.bind(self), self.clientUpsyncFps);
+    self.enableInputControls();
+  }
 }
 
 module.exports = WsManager;
 
 function _base64ToUint8Array(base64) {
-  var binary_string = instance.atob(base64);
+  var binary_string = atob(base64);
   var len = binary_string.length;
   var bytes = new Uint8Array(len);
   for (var i = 0; i < len; i++) {
