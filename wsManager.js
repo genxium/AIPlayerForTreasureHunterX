@@ -9,17 +9,21 @@ class WsManager {
   constructor(props) {
     const instance = this;
     this.boundRoomId = null;
-    this.selfPlayerInfo = props;
+    this.time = 0;
+    this.selfPlayerInfo = Object.assign(props, {x:297.57500000000005, y:799.395});
     this.recentFrameCacheCurrentSize = 0;
     this.recentFrameCacheMaxCount = 2048;
     this.recentFrameCache = {};
+    this.clientUpsyncFps = 20;
     this.intAuthToken = props.intAuthToken;
+    this.lastRoomDownsyncFrameId = 0;
     this.ALL_BATTLE_STATES = {
       WAITING: 0,
       IN_BATTLE: 1,
       IN_SETTLEMENT: 2,
       IN_DISMISSAL: 3,
     };
+    this.battleState = this.ALL_BATTLE_STATES.WAITING;
     protobuf.load("./room_downsync_frame.proto", function(err, root) {
       if (err) {
         console.log(err)
@@ -173,21 +177,26 @@ class WsManager {
 
   handleRoomDownsyncFrame(diffFrame) {
     const self = this;
+    //console.log("handleRoomDownsyncFrame lastRoomDownsyncFrameId:" + self.lastRoomDownsyncFrameId)
     const ALL_BATTLE_STATES = self.ALL_BATTLE_STATES;
     if (ALL_BATTLE_STATES.WAITING != self.battleState && ALL_BATTLE_STATES.IN_BATTLE != self.battleState && ALL_BATTLE_STATES.IN_SETTLEMENT != self.battleState) return;
     const refFrameId = diffFrame.refFrameId;
-    if (-99 == refFrameId) { //显示倒计时
-      //removed
-    } else if (-98 == refFrameId) { //显示匹配玩家
-      //removed
-    }
+    //console.log("handleRoomDownsyncFrame refFrameId:" + refFrameId)
     const frameId = diffFrame.id;
+    //console.log("handleRoomDownsyncFrame frameId:" + frameId)
     if (frameId <= self.lastRoomDownsyncFrameId) {
-      // Log the obsolete frames?
       return;
     }
+    //console.log("handleRoomDownsyncFrame recentFrameCacheCurrentSize:" + self.recentFrameCacheCurrentSize)
     const isInitiatingFrame = (0 > self.recentFrameCacheCurrentSize || 0 == refFrameId);
+    //console.log("handleRoomDownsyncFrame isInitiatingFrame:" + isInitiatingFrame)
     const cachedFullFrame = self.recentFrameCache[refFrameId];
+    //console.log("handleRoomDownsyncFrame cachedFullFrame:" + cachedFullFrame)
+    if (
+      !isInitiatingFrame
+    ) {
+      return;
+    }
 
     if (isInitiatingFrame && 0 == refFrameId) {
       self._onResyncCompleted();
@@ -199,7 +208,6 @@ class WsManager {
     if (isNaN(countdownSeconds)) {
       cc.log(`countdownSeconds is NaN for countdownNanos == ${countdownNanos}.`);
     }
-    self.countdownLabel.string = countdownSeconds;
     const roomDownsyncFrame = (
     (isInitiatingFrame)
       ?
@@ -224,6 +232,7 @@ class WsManager {
       const playerId = parseInt(k);
       if (playerId == self.selfPlayerInfo.id) {
         const immediateSelfPlayerInfo = players[k];
+        console.log("immediateSelfPlayerInfo:" + immediateSelfPlayerInfo)
         Object.assign(self.selfPlayerInfo, {
           x: immediateSelfPlayerInfo.x,
           y: immediateSelfPlayerInfo.y,
@@ -294,7 +303,7 @@ class WsManager {
     }
 
     if (0 == self.lastRoomDownsyncFrameId) {
-      instance.battleState = ALL_BATTLE_STATES.IN_BATTLE;
+      self.battleState = ALL_BATTLE_STATES.IN_BATTLE;
       if (1 == frameId) {
         console.log("game start")
       }
@@ -322,7 +331,7 @@ class WsManager {
 
   _onResyncCompleted() {
     if (false == this.resyncing) return;
-    cc.log(`_onResyncCompleted`);
+    console.log(`_onResyncCompleted`);
     this.resyncing = false;
     if (null != this.resyncingHintPopup && this.resyncingHintPopup.parent) {
       this.resyncingHintPopup.parent.removeChild(this.resyncingHintPopup);
@@ -435,11 +444,36 @@ class WsManager {
   }
   onBattleStarted() {
     const self = this;
-    if (self.musicEffectManagerScriptIns)
-      self.musicEffectManagerScriptIns.playBGM();
-    self.spawnSelfPlayer();
     self.upsyncLoopInterval = setInterval(self._onPerUpsyncFrame.bind(self), self.clientUpsyncFps);
-    self.enableInputControls();
+  }
+  _onPerUpsyncFrame() {
+    const instance = this;
+    if (instance.resyncing) return;
+    if (null == instance.selfPlayerInfo) return;
+    let x = parseFloat(instance.selfPlayerInfo.x + instance.time * 0.3);
+    let y = parseFloat(instance.selfPlayerInfo.y);
+    const upsyncFrameData = {
+      id: instance.selfPlayerInfo.playerId,
+      /**
+      * WARNING
+      *
+      * Deliberately NOT upsyncing the `instance.selfPlayerScriptIns.activeDirection` here, because it'll be deduced by other players from the position differences of `RoomDownsyncFrame`s.
+      */
+      dir: {
+        dx: 1,
+        dy: 0,
+      },
+      x: x,
+      y: y,
+      ackingFrameId: instance.lastRoomDownsyncFrameId,
+    };
+    const wrapped = {
+      msgId: Date.now(),
+      act: "PlayerUpsyncCmd",
+      data: upsyncFrameData,
+    }
+    instance.sendSafely(JSON.stringify(wrapped));
+    instance.time++
   }
 }
 
