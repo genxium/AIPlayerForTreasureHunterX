@@ -177,21 +177,15 @@ class WsManager {
 
   handleRoomDownsyncFrame(diffFrame) {
     const self = this;
-    //console.log("handleRoomDownsyncFrame lastRoomDownsyncFrameId:" + self.lastRoomDownsyncFrameId)
     const ALL_BATTLE_STATES = self.ALL_BATTLE_STATES;
     if (ALL_BATTLE_STATES.WAITING != self.battleState && ALL_BATTLE_STATES.IN_BATTLE != self.battleState && ALL_BATTLE_STATES.IN_SETTLEMENT != self.battleState) return;
     const refFrameId = diffFrame.refFrameId;
-    //console.log("handleRoomDownsyncFrame refFrameId:" + refFrameId)
     const frameId = diffFrame.id;
-    //console.log("handleRoomDownsyncFrame frameId:" + frameId)
     if (frameId <= self.lastRoomDownsyncFrameId) {
       return;
     }
-    //console.log("handleRoomDownsyncFrame recentFrameCacheCurrentSize:" + self.recentFrameCacheCurrentSize)
     const isInitiatingFrame = (0 > self.recentFrameCacheCurrentSize || 0 == refFrameId);
-    //console.log("handleRoomDownsyncFrame isInitiatingFrame:" + isInitiatingFrame)
     const cachedFullFrame = self.recentFrameCache[refFrameId];
-    //console.log("handleRoomDownsyncFrame cachedFullFrame:" + cachedFullFrame)
     if (
       !isInitiatingFrame
     ) {
