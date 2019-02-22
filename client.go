@@ -86,7 +86,7 @@ func main() {
 
 	u := url.URL{Scheme: "ws", Host: *addr, Path: "/tsrht"}
 	q := u.Query()
-	q.Set("intAuthToken", "e3595bb3b2e44c651033aa88f3399b71")
+	q.Set("intAuthToken", "80f239bdcfd8c29034ae9aeb3c028b8d")
 	u.RawQuery = q.Encode()
 	//ref to the NewClient and DefaultDialer.Dial https://github.com/gorilla/websocket/issues/54
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
@@ -156,30 +156,22 @@ func (client *Client) controller() {
 	if client.Player.Speed == 0 {
 		return
 	}
-	if client.LastRoomDownsyncFrame.Id == 1 {
+	if client.LastRoomDownsyncFrame.Id == 1 || client.LastRoomDownsyncFrame.Id == 0 {
+		client.InitColliders()
 		client.BattleState = IN_BATTLE
 		log.Println("Game Start")
-	}
-	for edge := client.PlayerCollidableBody.GetContactList(); edge != nil; edge = edge.Next {
-		log.Println("player conteact")
-		if edge.Contact.IsTouching() {
-			log.Println("player conteact")
-			if _, ok := edge.Other.GetUserData().(*models.Barrier); ok {
-				log.Println("player conteact to the barrier")
-			}
-		}
-	}
-	client.Player.Y = client.Player.Y - 10
-	//client.Player.Y++
-	newB2Vec2Pos := box2d.MakeB2Vec2(client.Player.X, client.Player.Y)
-	models.MoveDynamicBody(client.PlayerCollidableBody, &newB2Vec2Pos, 0)
-	//models.PrettyPrintBody(client.PlayerCollidableBody)
-	for edge := client.PlayerCollidableBody.GetContactList(); edge != nil; edge = edge.Next {
-		log.Println("player conteact")
-		if edge.Contact.IsTouching() {
-			log.Println("player conteact")
-			if _, ok := edge.Other.GetUserData().(*models.Barrier); ok {
-				log.Println("player conteact to the barrier")
+	} else {
+		//models.PrettyPrintBody(client.PlayerCollidableBody)
+		client.Player.Y = client.Player.Y - 5
+		newB2Vec2Pos := box2d.MakeB2Vec2(client.Player.X, client.Player.Y)
+		models.MoveDynamicBody(client.PlayerCollidableBody, &newB2Vec2Pos, 0)
+		time.Sleep(time.Duration(int64(40)))
+		for edge := client.PlayerCollidableBody.GetContactList(); edge != nil; edge = edge.Next {
+			if edge.Contact.IsTouching() {
+				log.Println("player conteact")
+				if _, ok := edge.Other.GetUserData().(*models.Barrier); ok {
+					log.Println("player conteact to the barrier")
+				}
 			}
 		}
 	}
@@ -262,16 +254,10 @@ func (client *Client) initMapStaticResource() {
 	ErrFatal(err)
 	models.DeserializeToTsxIns(byteArr, pTsxIns)
 
-	client.InitColliders()
 	client.InitBarrier(pTmxMapIns, pTsxIns)
 }
 
 func (client *Client) InitColliders() {
-	gravity := box2d.MakeB2Vec2(0.0, 0.0)
-	world := box2d.MakeB2World(gravity)
-	world.SetContactFilter(&box2d.B2ContactFilter{})
-	client.CollidableWorld = &world
-
 	log.Println("InitColliders for client.Players:", zap.Any("roomId", client.Id))
 	player := client.Player
 	var bdDef box2d.B2BodyDef
@@ -287,17 +273,21 @@ func (client *Client) InitColliders() {
 
 	fd := box2d.MakeB2FixtureDef()
 	fd.Shape = &b2CircleShape
-	fd.Filter.CategoryBits = COLLISION_CATEGORY_PUMPKIN
-	fd.Filter.MaskBits = COLLISION_MASK_FOR_PUMPKIN
+	fd.Filter.CategoryBits = COLLISION_CATEGORY_CONTROLLED_PLAYER
+	fd.Filter.MaskBits = COLLISION_MASK_FOR_CONTROLLED_PLAYER
 	fd.Density = 0.0
 	b2PlayerBody.CreateFixtureFromDef(&fd)
 
 	client.PlayerCollidableBody = b2PlayerBody
 	b2PlayerBody.SetUserData(player)
-	//models.PrettyPrintBody(client.PlayerCollidableBody)
+	models.PrettyPrintBody(client.PlayerCollidableBody)
 }
 
 func (client *Client) InitBarrier(pTmxMapIns *models.TmxMap, pTsxIns *models.Tsx) {
+	gravity := box2d.MakeB2Vec2(0.0, 0.0)
+	world := box2d.MakeB2World(gravity)
+	world.SetContactFilter(&box2d.B2ContactFilter{})
+	client.CollidableWorld = &world
 	for _, lay := range pTmxMapIns.Layers {
 		if lay.Name != "tile_1 human skeleton" && lay.Name != "tile_1 board" && lay.Name != "tile_1 stone" {
 			continue
