@@ -1,12 +1,13 @@
 package models
 
 import (
+  "AI/astar"
 	"bytes"
 	"compress/zlib"
 	"encoding/base64"
 	"encoding/xml"
 	"errors"
-	//"fmt"
+	"fmt"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"log"
@@ -93,7 +94,7 @@ type TmxMap struct {
 	Properties   []*TmxProperties  `xml:"properties"`
 	Tilesets     []*TmxTileset     `xml:"tileset"`
 	Layers       []*TmxLayer       `xml:"layer"`
-	ObjectGroups []*TmxObjectGroup `xml:"objectgroup"`
+	ObjectGroups []*TmxObjectGroup `xml:"objectgroup"` //Object layers
 
 	ControlledPlayersInitPosList []Vec2D
 	TreasuresInfo                []TreasuresInfo
@@ -101,6 +102,9 @@ type TmxMap struct {
 	SpeedShoesList               []SpeedShoesInfo
 	TrapsInitPosList             []Vec2D
 	Pumpkin                      []*Vec2D
+
+  //kobako
+  PathFindingMap astar.Map
 }
 
 type TreasuresInfo struct {
@@ -311,12 +315,82 @@ func DeserializeToTsxIns(byteArr []byte, pTsxIns *Tsx) error {
 	return nil
 }
 
+func (pTmxMapIns *TmxMap) decodeObjectLayers() error{
+	for _, objGroup := range pTmxMapIns.ObjectGroups {
+    fmt.Println(objGroup.Name);
+		if "highTreasures" == objGroup.Name {
+			pTmxMapIns.HighTreasuresInfo = make([]TreasuresInfo, len(objGroup.Objects))
+			for index, obj := range objGroup.Objects {
+				tmp := Vec2D{
+					X: obj.X,
+					Y: obj.Y,
+				}
+				treasurePos := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&tmp)
+				pTmxMapIns.HighTreasuresInfo[index].Score = HIGH_SCORE_TREASURE_SCORE
+				pTmxMapIns.HighTreasuresInfo[index].Type = HIGH_SCORE_TREASURE_TYPE
+				pTmxMapIns.HighTreasuresInfo[index].InitPos = treasurePos
+			}
+		}
+		if "treasures" == objGroup.Name {
+			pTmxMapIns.TreasuresInfo = make([]TreasuresInfo, len(objGroup.Objects))
+			for index, obj := range objGroup.Objects {
+				tmp := Vec2D{
+					X: obj.X,
+					Y: obj.Y,
+				}
+				treasurePos := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&tmp)
+				pTmxMapIns.TreasuresInfo[index].Score = TREASURE_SCORE
+				pTmxMapIns.TreasuresInfo[index].Type = TREASURE_TYPE
+				pTmxMapIns.TreasuresInfo[index].InitPos = treasurePos
+			}
+		}
+
+		if "traps" == objGroup.Name {
+			pTmxMapIns.TrapsInitPosList = make([]Vec2D, len(objGroup.Objects))
+			for index, obj := range objGroup.Objects {
+				tmp := Vec2D{
+					X: obj.X,
+					Y: obj.Y,
+				}
+				trapPos := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&tmp)
+				pTmxMapIns.TrapsInitPosList[index] = trapPos
+			}
+		}
+		if "pumpkin" == objGroup.Name {
+			pTmxMapIns.Pumpkin = make([]*Vec2D, len(objGroup.Objects))
+			for index, obj := range objGroup.Objects {
+				tmp := Vec2D{
+					X: obj.X,
+					Y: obj.Y,
+				}
+				pos := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&tmp)
+				pTmxMapIns.Pumpkin[index] = &pos
+			}
+		}
+		//Logger.Info("pumpkinInfo", zap.Any("p:", pTmxMapIns.Pumpkin))
+		if "speed_shoes" == objGroup.Name {
+			pTmxMapIns.SpeedShoesList = make([]SpeedShoesInfo, len(objGroup.Objects))
+			for index, obj := range objGroup.Objects {
+				tmp := Vec2D{
+					X: obj.X,
+					Y: obj.Y,
+				}
+				pos := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&tmp)
+				pTmxMapIns.SpeedShoesList[index].Type = SPEED_SHOES_TYPE
+				pTmxMapIns.SpeedShoesList[index].InitPos = pos
+			}
+		}
+	}
+  return nil
+}
+
 func DeserializeToTmxMapIns(byteArr []byte, pTmxMapIns *TmxMap) error {
 	err := xml.Unmarshal(byteArr, pTmxMapIns)
 	if err != nil {
 		return err
 	}
 	// fmt.Printf("%s\n", byteArr)
+  /*
 	for _, objGroup := range pTmxMapIns.ObjectGroups {
 		if "highTreasures" == objGroup.Name {
 			pTmxMapIns.HighTreasuresInfo = make([]TreasuresInfo, len(objGroup.Objects))
@@ -381,7 +455,10 @@ func DeserializeToTmxMapIns(byteArr []byte, pTmxMapIns *TmxMap) error {
 			}
 		}
 	}
-	return pTmxMapIns.decodeLayerGid()
+  */
+  pTmxMapIns.decodeObjectLayers()
+	//return pTmxMapIns.decodeLayerGid()
+	return pTmxMapIns.decodeLayerGidKobako()
 }
 
 func (pTmxMap *TmxMap) ToXML() (string, error) {
