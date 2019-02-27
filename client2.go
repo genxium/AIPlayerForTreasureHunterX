@@ -2,6 +2,7 @@ package main
 
 import (
 	"AI/models"
+	"AI/astar"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"time"
+	"math"
 )
 
 const (
@@ -23,6 +25,9 @@ const (
 	IN_BATTLE     = 1
 	IN_SETTLEMENT = 2
 	IN_DISMISSAL  = 3
+	uniformTimeStepSeconds = 1.0 / 60.0
+	uniformVelocityIterations = 0
+	uniformPositionIterations = 0
 )
 
 const (
@@ -59,6 +64,11 @@ type wsResp struct {
 	Data        json.RawMessage `json:"data,omitempty"`
 }
 
+type Direction struct{
+  Dx          float64
+  Dy          float64
+}
+
 type wsRespPb struct {
 	Ret         int32  `json:"ret,omitempty"`
 	EchoedMsgId int32  `json:"echoedMsgId,omitempty"`
@@ -75,6 +85,10 @@ type Client struct {
 	CollidableWorld       *box2d.B2World
 	Barrier               map[int32]*models.Barrier
 	PlayerCollidableBody  *box2d.B2Body `json:"-"`
+  AstarMap              astar.Map
+  Path                  []astar.Point
+  Radian                float64
+  Dir                   Direction
 }
 
 var addr = flag.String("addr", "localhost:9992", "http service address")
@@ -109,11 +123,16 @@ func main() {
 			c:                     c,
 			Player:                &models.Player{Id: 8},
 			Barrier:               make(map[int32]*models.Barrier),
+      AstarMap:              astar.Map{},
+      Radian:                math.Pi / 2,
+      Dir:                   Direction{Dx: 0, Dy: 1},
 		}
-		client.initMapStaticResource()
-	  uniformTimeStepSeconds := 1.0 / 60.0
-	  uniformVelocityIterations := 0
-	  uniformPositionIterations := 0
+		client.initMapStaticResource();
+
+    //
+    astar.PrintMap(client.AstarMap);
+
+
 		for {
 			var resp *wsResp
 			resp = new(wsResp)
@@ -122,7 +141,6 @@ func main() {
 				//log.Println("marshal wsResp:", err)
 			}
 
-      client.CollidableWorld.Step(uniformTimeStepSeconds, uniformVelocityIterations,uniformPositionIterations)
 
 			if resp.Act == "RoomDownsyncFrame" {
 				var respPb *wsRespPb
@@ -177,40 +195,77 @@ func (client *Client) controller() {
     //log.Println(client.Player.X, client.Player.Y)
     //log.Println(client.PlayerCollidableBody)
 
+    //找到一个合适的方向
     step := 5.0;
 
-		newB2Vec2Pos := box2d.MakeB2Vec2(client.Player.X, client.Player.Y - step)
-		models.MoveDynamicBody(client.PlayerCollidableBody, &newB2Vec2Pos, 0)
+    func (){ //checkChangeDirectionThenMoveProperly
+
+      nowRadian := client.Radian;
+
+      for nowRadian - client.Radian < math.Pi * 2 {
+        xStep := step * math.Cos(nowRadian);
+        yStep := step * math.Sin(nowRadian);
+        //fmt.Println(xStep, yStep);
+
+        //移动collideBody
+    		newB2Vec2Pos := box2d.MakeB2Vec2(client.Player.X + xStep, client.Player.Y - yStep);
+    		//newB2Vec2Pos := box2d.MakeB2Vec2(client.Player.X, client.Player.Y - yStep);
+    		models.MoveDynamicBody(client.PlayerCollidableBody, &newB2Vec2Pos, 0);
+    
+        //world.Step
+        client.CollidableWorld.Step(uniformTimeStepSeconds, uniformVelocityIterations,uniformPositionIterations)
+    
+        //碰撞检测
+        collided := false;
+    		for edge := client.PlayerCollidableBody.GetContactList(); edge != nil; edge = edge.Next {
+    			if edge.Contact.IsTouching() {
+            collided = true;
+            break;
+    				//log.Println("player conteact")
+    				if _, ok := edge.Other.GetUserData().(*models.Barrier); ok {
+    					//log.Println("player conteact to the barrier")
+    				}
+    			}
+    		}
+    
+        if(!collided){ //一直走
+          client.Player.X = client.Player.X + xStep;
+          client.Player.Y = client.Player.Y - yStep;
+
+          //kobako
+          //TODO: set correct direction
+          dx, dy := func() (dx float64, dy float64){
+            floorRadian := nowRadian - math.Pi * 2 * math.Floor(nowRadian / (2 * math.Pi)); 
+            //fmt.Println(floorRadian);
+            if floorRadian < math.Pi / 2 { return 2, -1; }else if floorRadian < math.Pi{
+              return -2, -1;
+            }else if floorRadian < math.Pi * 3 / 2{
+              return -2, 1;
+            }else {
+              return 2, 1;
+            }
+          }()
+          client.Dir = Direction{
+            Dx: dx,
+            Dy: dy,
+          }
+          //fmt.Println(dx, dy)
+          //kobako
+          break;
+        }else{//转向
+          log.Println("player collided with barriers & change direction: ", nowRadian);
+          nowRadian = nowRadian + math.Pi / 16;
+
+        }
+      }
+
+      client.Radian = nowRadian;
+
+    }()
+
 		time.Sleep(time.Duration(int64(40)))
-
-    /*
-    //kobako
-		log.Println("In loop");
-    contactList := client.CollidableWorld.GetContactList()
-    for contactList != nil{
-      log.Println("Contact!");
-      contactList = contactList.GetNext()
-    }
-    //End kobako
-    */
-    //client.CollidableWorld.Step();
-
-    collided := false;
-		for edge := client.PlayerCollidableBody.GetContactList(); edge != nil; edge = edge.Next {
-			if edge.Contact.IsTouching() {
-        collided = true;
-        break;
-				//log.Println("player conteact")
-				if _, ok := edge.Other.GetUserData().(*models.Barrier); ok {
-					//log.Println("player conteact to the barrier")
-				}
-			}
-		}
-    if(!collided){
-      client.Player.Y = client.Player.Y - step;
-      log.Println("player collided with barriers");
-    }
 	}
+
 }
 
 func (client *Client) upsyncFrameData() {
@@ -219,9 +274,10 @@ func (client *Client) upsyncFrameData() {
 			Id            int64             `json:"id"`
 			X             float64           `json:"x"`
 			Y             float64           `json:"y"`
-			Dir           *models.Direction `json:"dir"`
+			//Dir           *models.Direction `json:"dir"`
+			Dir           Direction         `json:"dir"`
 			AckingFrameId int32             `json:"AckingFrameId"`
-		}{client.Player.Id, client.Player.X, client.Player.Y, client.Player.Dir, client.LastRoomDownsyncFrame.Id}
+		}{client.Player.Id, client.Player.X, client.Player.Y, client.Dir, client.LastRoomDownsyncFrame.Id}
 		newFrameByte, err := json.Marshal(newFrame)
 		if err != nil {
 			log.Println("json Marshal:", err)
@@ -289,6 +345,8 @@ func (client *Client) initMapStaticResource() {
 	byteArr, err = ioutil.ReadFile(fp)
 	ErrFatal(err)
 	models.DeserializeToTsxIns(byteArr, pTsxIns)
+
+  client.AstarMap = pTmxMapIns.PathFindingMap;
 
 	client.InitBarrier(pTmxMapIns, pTsxIns)
 }

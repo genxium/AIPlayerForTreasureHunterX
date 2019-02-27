@@ -3,6 +3,7 @@ package main
 import(
   "fmt"
 	"AI/models"
+	"AI/astar"
 	"path/filepath"
 	"os"
 	"io/ioutil"
@@ -10,10 +11,14 @@ import(
 
 func main(){
   //fmt.Println();
-  initMapStaticResource()
+  tmxMapIns := initMapStaticResource()
+  //tmxMapIns.PathFindingMap()
+  astar.PrintMap(tmxMapIns.PathFindingMap);
+  path := astar.AstarByMap(tmxMapIns.PathFindingMap);
+  fmt.Println(path);
 }
 
-func initMapStaticResource() error{
+func initMapStaticResource() models.TmxMap{
 
 	relativePath := "./map/map/kobako_test.tmx"
 	execPath, err := os.Executable()
@@ -58,6 +63,6 @@ func initMapStaticResource() error{
 	models.DeserializeToTsxIns(byteArr, pTsxIns)
 
 	//client.InitBarrier(pTmxMapIns, pTsxIns)
-  return nil;
-  //return tmxMapIns;
+  //return nil;
+  return tmxMapIns;
 }
