@@ -105,12 +105,20 @@ type TmxMap struct {
 
   //kobako
   PathFindingMap astar.Map
+  StartPoint Point
+}
+
+type Point struct{
+  X int
+  Y int
 }
 
 type TreasuresInfo struct {
 	InitPos Vec2D
 	Type    int32
 	Score   int32
+  //DiscretePos Point
+  DiscretePos Point
 }
 
 type SpeedShoesInfo struct {
@@ -325,12 +333,33 @@ func (pTmxMapIns *TmxMap) decodeObjectLayers() error{
 					X: obj.X,
 					Y: obj.Y,
 				}
+
+
 				treasurePos := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&tmp)
 				pTmxMapIns.HighTreasuresInfo[index].Score = HIGH_SCORE_TREASURE_SCORE
 				pTmxMapIns.HighTreasuresInfo[index].Type = HIGH_SCORE_TREASURE_TYPE
 				pTmxMapIns.HighTreasuresInfo[index].InitPos = treasurePos
+
+        //kobako
+				pTmxMapIns.HighTreasuresInfo[index].DiscretePos.X = int(math.Floor(obj.X / float64(pTmxMapIns.TileWidth)));
+				pTmxMapIns.HighTreasuresInfo[index].DiscretePos.Y = int(math.Floor(obj.Y / float64(pTmxMapIns.TileHeight)));
 			}
 		}
+
+    //kobako
+    if "controlled_players_starting_pos_list" == objGroup.Name{
+      pTmxMapIns.StartPoint.X = int(objGroup.Objects[1].X / float64(pTmxMapIns.TileWidth));
+      pTmxMapIns.StartPoint.Y = int(objGroup.Objects[1].Y / float64(pTmxMapIns.TileHeight));
+      fmt.Printf("Read the bot position in the object layer: controlled_players_starting_pos_list, then discrete, pos, : %v \n", pTmxMapIns.StartPoint);
+      /*
+			for index, obj := range objGroup.Objects {
+        pTmxMapIns.StartPoint.X = obj.X;
+        pTmxMapIns.StartPoint.Y = obj.Y;
+			}
+      */
+    }
+    //kobako
+
 		if "treasures" == objGroup.Name {
 			pTmxMapIns.TreasuresInfo = make([]TreasuresInfo, len(objGroup.Objects))
 			for index, obj := range objGroup.Objects {
@@ -456,9 +485,10 @@ func DeserializeToTmxMapIns(byteArr []byte, pTmxMapIns *TmxMap) error {
 		}
 	}
   */
-  pTmxMapIns.decodeObjectLayers()
+  pTmxMapIns.decodeObjectLayers();
+  //fmt.Println(pTmxMapIns.HighTreasuresInfo);
 	//return pTmxMapIns.decodeLayerGid()
-	return pTmxMapIns.decodeLayerGidKobako()
+	return pTmxMapIns.decodeLayerGidHacked();
 }
 
 func (pTmxMap *TmxMap) ToXML() (string, error) {
@@ -491,4 +521,74 @@ func (pTmxMapIns *TmxMap) continuousObjLayerVecToContinuousMapNodeVec(continuous
 	converted.X = convertedVecX + 0
 	converted.Y = convertedVecY + 0.5*float64(pTmxMapIns.Height*pTmxMapIns.TileHeight)
 	return converted
+}
+
+func (m *TmxMap) decodeLayerGidHacked() error {
+  //collideMap := [m.Height][m.Width]uint8{};
+  //fmt.Println(collideMap);
+  pathFindingMap := make([][]int, m.Height)
+  for i := range pathFindingMap {
+    pathFindingMap[i] = make([]int, m.Width)
+  }
+
+	for _, layer := range m.Layers {
+    fmt.Println(layer.Name)
+		gids, err := layer.decodeBase64()
+		if err != nil {
+			return err
+		}
+
+
+		tmxsets := make([]*TmxTile, len(gids))
+		for index, gid := range gids {
+
+			if gid == 0 {
+				continue
+			}
+      //kobako
+      if layer.Name == "tile_1 stone" || layer.Name == "tile_1 board" ||layer.Name == "tile_1 human skeleton"{
+        pathFindingMap[index / layer.Width][index % layer.Width] = 1;
+      }
+      /*
+      if layer.Name == "barrier"{
+        pathFindingMap[index / layer.Width][index % layer.Width] = 1;
+      }else if layer.Name == "start"{
+        pathFindingMap[index / layer.Width][index % layer.Width] = 2;
+      }else if layer.Name == "goal"{
+        pathFindingMap[index / layer.Width][index % layer.Width] = 3;
+      }
+      */
+      //kobako
+
+			flipHorizontal := (gid & FLIPPED_HORIZONTALLY_FLAG)
+			flipVertical := (gid & FLIPPED_VERTICALLY_FLAG)
+			flipDiagonal := (gid & FLIPPED_DIAGONALLY_FLAG)
+			gid := gid & ^(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG)
+      //fmt.Println(gid, index);
+			for i := len(m.Tilesets) - 1; i >= 0; i-- {
+				if m.Tilesets[i].FirstGid <= gid {
+          //fmt.Println(gid - m.Tilesets[i].FirstGid, index, i);
+					tmxsets[index] = &TmxTile{
+						Id:             gid - m.Tilesets[i].FirstGid,
+						Tileset:        m.Tilesets[i],
+						FlipHorizontal: flipHorizontal > 0,
+						FlipVertical:   flipVertical > 0,
+						FlipDiagonal:   flipDiagonal > 0,
+					}
+					break
+				}
+			}
+		}
+
+		layer.Tile = tmxsets
+
+
+    //fmt.Println(a);
+
+    //fmt.Printf("%+v\n", tmxsets)
+	}
+
+  //astar.PrintMap(pathFindingMap);
+  m.PathFindingMap = pathFindingMap;
+	return nil
 }

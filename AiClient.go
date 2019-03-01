@@ -91,7 +91,8 @@ type Client struct {
   Dir                   Direction
 }
 
-var addr = flag.String("addr", "localhost:9992", "http service address")
+var addr = flag.String("addr", "localhost:9992", "http service address") //local
+//var addr = flag.String("addr", "tsrht.lokcol.com:9992", "http service address") //server
 
 func main() {
 	flag.Parse()
@@ -102,9 +103,10 @@ func main() {
 
 	u := url.URL{Scheme: "ws", Host: *addr, Path: "/tsrht"}
 	q := u.Query()
-	//q.Set("intAuthToken", "80f239bdcfd8c29034ae9aeb3c028b8d")
-	//q.Set("intAuthToken", "ef1dede1e63ad0f5b10cf1f010c85e83")
+  //local
 	q.Set("intAuthToken", "b4e38bb7886a65b194349a41e69be1d7")
+  //server
+	//q.Set("intAuthToken", "1da05d70c52a57d1379737bd537cd415")
 	u.RawQuery = q.Encode()
 	//ref to the NewClient and DefaultDialer.Dial https://github.com/gorilla/websocket/issues/54
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
@@ -121,6 +123,9 @@ func main() {
 			LastRoomDownsyncFrame: nil,
 			BattleState:           -1,
 			c:                     c,
+      //server
+			//Player:                &models.Player{Id: 93},
+      //local
 			Player:                &models.Player{Id: 8},
 			Barrier:               make(map[int32]*models.Barrier),
       AstarMap:              astar.Map{},
@@ -196,7 +201,7 @@ func (client *Client) controller() {
     //log.Println(client.PlayerCollidableBody)
 
     //找到一个合适的方向
-    step := 10.0;
+    step := 16.0;
 
     func (){ //checkChangeDirectionThenMoveProperly
 
@@ -307,6 +312,13 @@ func (client *Client) decodeProtoBuf(message []byte) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+  /*
+  fmt.Println("decodeProtoBuf(): ");
+  fmt.Println(room_downsync_frame.Players);
+  fmt.Println(client.Player.Id);
+  */
+
 	client.LastRoomDownsyncFrame = &room_downsync_frame
 	client.Player.Speed = room_downsync_frame.Players[int32(client.Player.Id)].Speed
 	client.Player.Dir = room_downsync_frame.Players[int32(client.Player.Id)].Dir

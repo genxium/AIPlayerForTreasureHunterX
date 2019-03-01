@@ -5,6 +5,7 @@ import (
   "math"
   "errors"
   mapset "github.com/deckarep/golang-set"
+  . "github.com/logrusorgru/aurora"
 )
 
 type Map = [][]int; //Itself is the pointer
@@ -94,6 +95,8 @@ func AstarByMap(m Map) []Point{
   start,_ := findPoint(m, START);
   goal, _ := findPoint(m, GOAL);
 
+  fmt.Printf("Astar start: start at: %v, goal at: %v", start, goal);
+
   openSet := mapset.NewSet(start);
   closeSet := mapset.NewSet();
   gScore := map[string]float64{hash(start): 0};
@@ -105,7 +108,7 @@ func AstarByMap(m Map) []Point{
   var err error;
   for openSet.Cardinality() > 0{
     count = count + 1;
-    if count > 500{
+    if count > 3000{
       err = errors.New("Had tried too many times, there may be some logic error in your code!");
       break;
     }
@@ -162,7 +165,14 @@ func AstarByMap(m Map) []Point{
 func PrintMap(m Map){
   for row := range m{
     for col := range m[row]{
-      fmt.Printf( "%d ", m[row][col]);
+      switch num := m[row][col]; num {
+      case 1:
+        fmt.Printf( "%d ", Red(num));
+      case 9:
+        fmt.Printf( "%d ", Green(num));
+      default:
+        fmt.Printf( "%d ", num);
+      }
     }
     fmt.Println();
   }
