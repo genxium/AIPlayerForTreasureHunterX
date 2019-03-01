@@ -196,7 +196,7 @@ func (client *Client) controller() {
     //log.Println(client.PlayerCollidableBody)
 
     //找到一个合适的方向
-    step := 5.0;
+    step := 10.0;
 
     func (){ //checkChangeDirectionThenMoveProperly
 
@@ -268,7 +268,11 @@ func (client *Client) controller() {
 
 }
 
+//lastPos := Position{};
+
 func (client *Client) upsyncFrameData() {
+  //if(lastPos)
+  //fmt.Println(client.Player.X, client.Player.Y);
 	if client.BattleState == IN_BATTLE {
 		newFrame := &struct {
 			Id            int64             `json:"id"`
@@ -277,7 +281,7 @@ func (client *Client) upsyncFrameData() {
 			//Dir           *models.Direction `json:"dir"`
 			Dir           Direction         `json:"dir"`
 			AckingFrameId int32             `json:"AckingFrameId"`
-		}{client.Player.Id, client.Player.X, client.Player.Y, client.Dir, client.LastRoomDownsyncFrame.Id}
+		}{client.Player.Id, client.Player.X, client.Player.Y, Direction{}, client.LastRoomDownsyncFrame.Id}
 		newFrameByte, err := json.Marshal(newFrame)
 		if err != nil {
 			log.Println("json Marshal:", err)
