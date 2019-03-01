@@ -3,6 +3,7 @@ package main
 import (
 	"AI/models"
 	"AI/astar"
+	"AI/constants"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -91,10 +92,15 @@ type Client struct {
   Dir                   Direction
 }
 
-var addr = flag.String("addr", "localhost:9992", "http service address") //local
-//var addr = flag.String("addr", "tsrht.lokcol.com:9992", "http service address") //server
 
 func main() {
+
+  /** init constants */
+  constants.Init();
+  /** init constants */
+
+  addr := flag.String("addr", constants.DOMAIN, "http service address")
+
 	flag.Parse()
 	log.SetFlags(0)
 
@@ -104,7 +110,7 @@ func main() {
 	u := url.URL{Scheme: "ws", Host: *addr, Path: "/tsrht"}
 	q := u.Query()
   //local
-	q.Set("intAuthToken", "b4e38bb7886a65b194349a41e69be1d7")
+	q.Set("intAuthToken", constants.INT_AUTH_TOKEN)
   //server
 	//q.Set("intAuthToken", "1da05d70c52a57d1379737bd537cd415")
 	u.RawQuery = q.Encode()
@@ -126,7 +132,7 @@ func main() {
       //server
 			//Player:                &models.Player{Id: 93},
       //local
-			Player:                &models.Player{Id: 8},
+			Player:                &models.Player{Id: constants.PLAYER_ID},
 			Barrier:               make(map[int32]*models.Barrier),
       AstarMap:              astar.Map{},
       Radian:                math.Pi / 2,
