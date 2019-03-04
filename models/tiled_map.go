@@ -106,6 +106,7 @@ type TmxMap struct {
   //kobako
   PathFindingMap astar.Map
   StartPoint Point
+  Path []astar.Point
 }
 
 type Point struct{
@@ -592,3 +593,35 @@ func (m *TmxMap) decodeLayerGidHacked() error {
   m.PathFindingMap = pathFindingMap;
 	return nil
 }
+
+func InitItemsForPathFinding(tmxMapIns *TmxMap){
+    //初始化奖励位置
+  for _, hignTreasure := range tmxMapIns.HighTreasuresInfo{
+    fmt.Println(hignTreasure.DiscretePos.Y, hignTreasure.DiscretePos.X);
+    tmxMapIns.PathFindingMap[hignTreasure.DiscretePos.Y][hignTreasure.DiscretePos.X] = 3;
+  }
+  //初始化起点位置
+  tmxMapIns.PathFindingMap[tmxMapIns.StartPoint.Y][tmxMapIns.StartPoint.X] = 2;
+}
+
+
+//从tmxIns取出信息并用于初始化寻路地图, 存储在
+func FindPath(tmxMapIns *TmxMap) []astar.Point{
+
+    //InitMapItems(tmxMapIns);
+
+    fmt.Println("The Start Point: ");
+    fmt.Println(tmxMapIns.StartPoint);
+
+    path := astar.AstarByMap(tmxMapIns.PathFindingMap);
+    fmt.Printf("Path: %v \n",path);
+
+    tmxMapIns.Path = path;
+    for _, pt := range path{
+      tmxMapIns.PathFindingMap[pt.Y][pt.X] = 9;
+    }
+    astar.PrintMap(tmxMapIns.PathFindingMap);
+
+    return path;
+}
+

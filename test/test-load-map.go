@@ -3,38 +3,32 @@ package main
 import(
   "fmt"
 	"AI/models"
-	"AI/astar"
+	//"AI/astar"
 	"path/filepath"
 	"os"
+	"time"
 	"io/ioutil"
 )
 
 func main(){
   //fmt.Println();
-  tmxMapIns := initMapStaticResource()
+  tmxMapIns := initMapStaticResource();
   //tmxMapIns.PathFindingMap()
 
-  //初始化奖励位置
-  for _, hignTreasure := range tmxMapIns.HighTreasuresInfo{
-    fmt.Println(hignTreasure.DiscretePos.Y, hignTreasure.DiscretePos.X);
-    tmxMapIns.PathFindingMap[hignTreasure.DiscretePos.Y][hignTreasure.DiscretePos.X] = 3;
-  }
-  //初始化起点位置
-  tmxMapIns.PathFindingMap[tmxMapIns.StartPoint.Y][tmxMapIns.StartPoint.X] = 2;
+  models.FindPath(&tmxMapIns);
 
+  walkInfo := models.AstarPathToWalkInfo(tmxMapIns.Path);
+  step := 300.0;
 
-  fmt.Println("The Start Point: ");
-  fmt.Println(tmxMapIns.StartPoint);
-
-
-  path := astar.AstarByMap(tmxMapIns.PathFindingMap);
-  fmt.Println(path);
-
-  for _, pt := range path{
-    tmxMapIns.PathFindingMap[pt.Y][pt.X] = 9;
+  for {
+    end := models.GotToGoal(step, &walkInfo);
+    if end{
+      break;
+    }else{
+     time.Sleep(1 * time.Second);
+    }
   }
 
-  astar.PrintMap(tmxMapIns.PathFindingMap);
 }
 
 func initMapStaticResource() models.TmxMap{

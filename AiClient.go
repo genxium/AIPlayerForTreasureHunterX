@@ -87,9 +87,10 @@ type Client struct {
 	Barrier               map[int32]*models.Barrier
 	PlayerCollidableBody  *box2d.B2Body `json:"-"`
   AstarMap              astar.Map
-  Path                  []astar.Point
   Radian                float64
   Dir                   Direction
+  TmxIns                models.TmxMap
+  WalkInfo              models.WalkInfo
 }
 
 
@@ -138,11 +139,26 @@ func main() {
       Radian:                math.Pi / 2,
       Dir:                   Direction{Dx: 0, Dy: 1},
 		}
-		client.initMapStaticResource();
 
-    //
-    astar.PrintMap(client.AstarMap);
+    client.TmxIns = client.initMapStaticResource();
+    models.InitItemsForPathFinding(&client.TmxIns);
+    discretePath := models.FindPath(&client.TmxIns);
 
+    var path []models.AccuratePosition;
+    for _, pt := range discretePath{
+      gid := pt.Y * client.TmxIns.Width + pt.X;
+      x, y := client.TmxIns.GetCoordByGid(gid);
+      path = append(path, models.AccuratePosition{
+        X: x,
+        Y: y,
+      })
+    }
+    fmt.Println("The coord path: %v", path);
+    client.WalkInfo = models.WalkInfo{
+      Path: path,
+      CurrentPos: path[0],
+      CurrentTarIndex: 1,
+    }
 
 		for {
 			var resp *wsResp
@@ -207,8 +223,14 @@ func (client *Client) controller() {
     //log.Println(client.PlayerCollidableBody)
 
     //找到一个合适的方向
+
     step := 16.0;
 
+    //pathFindingMove(client, step);
+
+    foolMove(client, step);
+
+    /*
     func (){ //checkChangeDirectionThenMoveProperly
 
       nowRadian := client.Radian;
@@ -273,10 +295,90 @@ func (client *Client) controller() {
       client.Radian = nowRadian;
 
     }()
+    */
 
 		time.Sleep(time.Duration(int64(40)))
 	}
 
+}
+
+//撞墙转向
+func foolMove(client *Client, step float64){
+  nowRadian := client.Radian;
+
+  for nowRadian - client.Radian < math.Pi * 2 {
+    xStep := step * math.Cos(nowRadian);
+    yStep := step * math.Sin(nowRadian);
+    //fmt.Println(xStep, yStep);
+
+    //移动collideBody
+		newB2Vec2Pos := box2d.MakeB2Vec2(client.Player.X + xStep, client.Player.Y - yStep);
+		//newB2Vec2Pos := box2d.MakeB2Vec2(client.Player.X, client.Player.Y - yStep);
+		models.MoveDynamicBody(client.PlayerCollidableBody, &newB2Vec2Pos, 0);
+
+    //world.Step
+    client.CollidableWorld.Step(uniformTimeStepSeconds, uniformVelocityIterations,uniformPositionIterations)
+
+    //碰撞检测
+    collided := false;
+		for edge := client.PlayerCollidableBody.GetContactList(); edge != nil; edge = edge.Next {
+			if edge.Contact.IsTouching() {
+        collided = true;
+        break;
+				//log.Println("player conteact")
+				if _, ok := edge.Other.GetUserData().(*models.Barrier); ok {
+					//log.Println("player conteact to the barrier")
+				}
+			}
+		}
+
+    if(!collided){ //一直走
+      client.Player.X = client.Player.X + xStep;
+      client.Player.Y = client.Player.Y - yStep;
+
+      //kobako
+      //TODO: set correct direction
+      dx, dy := func() (dx float64, dy float64){
+        floorRadian := nowRadian - math.Pi * 2 * math.Floor(nowRadian / (2 * math.Pi)); 
+        //fmt.Println(floorRadian);
+        if floorRadian < math.Pi / 2 { return 2, -1; }else if floorRadian < math.Pi{
+          return -2, -1;
+        }else if floorRadian < math.Pi * 3 / 2{
+          return -2, 1;
+        }else {
+          return 2, 1;
+        }
+      }()
+      client.Dir = Direction{
+        Dx: dx,
+        Dy: dy,
+      }
+      //fmt.Println(dx, dy)
+      //kobako
+      break;
+    }else{//转向
+      log.Println("player collided with barriers & change direction: ", nowRadian);
+      nowRadian = nowRadian + math.Pi / 16;
+
+    }
+  }
+
+  client.Radian = nowRadian;
+}
+
+func pathFindingMove(client *Client, step float64){
+  client.WalkInfo.CurrentPos.X = client.Player.X;
+  client.WalkInfo.CurrentPos.Y = client.Player.Y;
+
+  end := models.GotToGoal(step, &client.WalkInfo);
+  if end {
+    return
+  }
+
+  client.Player.X = client.WalkInfo.CurrentPos.X;
+  client.Player.Y = client.WalkInfo.CurrentPos.Y;
+
+  log.Println(client.Player.X, client.Player.Y);
 }
 
 //lastPos := Position{};
@@ -332,7 +434,8 @@ func (client *Client) decodeProtoBuf(message []byte) {
 	client.Player.Y = room_downsync_frame.Players[int32(client.Player.Id)].Y
 }
 
-func (client *Client) initMapStaticResource() {
+//kobako: Hacked in and stored some info for path finding in the tmxIns
+func (client *Client) initMapStaticResource() models.TmxMap{
 
 	relativePath := "./map/map/treasurehunter.tmx"
 	execPath, err := os.Executable()
@@ -371,6 +474,8 @@ func (client *Client) initMapStaticResource() {
   client.AstarMap = pTmxMapIns.PathFindingMap;
 
 	client.InitBarrier(pTmxMapIns, pTsxIns)
+
+  return tmxMapIns;
 }
 
 func (client *Client) InitColliders() {
