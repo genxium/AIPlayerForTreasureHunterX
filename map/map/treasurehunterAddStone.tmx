@@ -59,7 +59,7 @@
    <property name="type" value="barrier_and_shelter"/>
   </properties>
   <data encoding="base64" compression="zlib">
-   eJztmssSwiAMRTv+/0c77pzSKI/ccBPu2bjQhnAKJVCvSwghxMm8jM/ZOJVYdXKPUwmvPlV044XctHjNyUp4PcMrYblAuMni+9/4yNIPD0bnzAlu9ByxkRMbOeECOVaz32ukk+xuPImou3pZadszb6a6i2WsMtVdHm1Fxohwk2WcrP6eJfYITGe12Z14XY+KtcIOJ0xr3RM7nTDVRt/snDtVnXjCkgtLHh9Y1rIMTqJzzOQkeo/I4KZ3nET3j/Gs4OQ5Ndv3E92w7N1784rYJ7Ps3Xvr7+znKiOxe98JM6xXK3g6mYnJCMJJBn71IWstt4q3E49ro4leBzK4mXHC8h4liky5oliZO9X9VVg70TU5+hoEFe4rGgY3DDk8wZrX6ei+2LCcbzHSe14gN/b3u8cXwxmy9f2IG5b3oqg2705270sZ3FhOUGc7VruesXeA/A+YnMTGRiInLXLSIictctIiJ+JU3gFXAZU=
+   eJztmusKgzAMRmWvIPj+jzoGCtI2zrZfrs3545gspqep2LhtS5IkSVbmQxxH40Ri1kkZJxKoMUV0gyLd1KDWZCRQ9/BIUC443Hjx/a8+vIwDQe+aWcFN3kdo0glNRCe7dgITcNXqfsaM4AbFz8Vxfj42325QXHVSfqflZmbOUfVyd3IUR401ZeGe3aqTEkk3CCezMVpOynq5X4vbjZc6KeF0Y90JVS8XHG6sO3kL0s3KTiz3GBDPIjNOJHpSvWivnahOrjgIIjlBYaGf68WJZI7enEjuEa24eVsnI7mOjk/bTe/aWWFNjY59RTdvc+DO9R7/yY3EPnlk785BK5+WG+99lZ7YT3O0F+c997ZRTi5WexfSs5atO3kag+SzjiXQThC/lUa6B+HBzYgTC+9RJPGUKxczaye6vwj/HeJ+Juf+DQcR5pUbC24s5NDCal6rk/NCY6W/ZZG3/dB0Q5/Xri8LPWTqfI8bC+9FOa9ZOtHel1pwQznh6u1Q10XG1gCZdzrRjc1JOqlJJzXppCad1KSTZFW++WgFlA==
   </data>
  </layer>
  <objectgroup id="6" name="controlled_players_starting_pos_list">

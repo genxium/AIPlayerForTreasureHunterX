@@ -2,22 +2,41 @@
 <tileset version="1.2" tiledversion="1.2.1" name="tile_1" tilewidth="64" tileheight="64" tilecount="12" columns="3">
  <image source="tile_1.png" width="192" height="256"/>
  <tile id="1">
+  <properties>
+   <property name="type" value="barrier"/>
+  </properties>
   <objectgroup draworder="index">
-   <object id="2" x="62.6667" y="-1.33333">
+   <object id="2" x="62.6667" y="0.66667">
     <properties>
      <property name="boundary_type" value="barrier"/>
     </properties>
-    <polyline points="0,0 -62.6667,0.666667 -62.6667,64.6667 0.666667,65.3333 1.33333,9.33333"/>
+    <polyline points="0,0 -62.6667,0.666667 -62.6667,64.6667 0.666667,65.3333 0.33333,1.33333"/>
    </object>
   </objectgroup>
  </tile>
  <tile id="4">
+  <properties>
+   <property name="type" value="barrier"/>
+  </properties>
   <objectgroup draworder="index">
    <object id="2" x="63.3333" y="-0.666667">
     <properties>
      <property name="boundary_type" value="barrier"/>
     </properties>
     <polyline points="0,0 -64,0 -64,64.6667 0.666667,64.6667 1.33333,10.6667"/>
+   </object>
+  </objectgroup>
+ </tile>
+ <tile id="5">
+  <properties>
+   <property name="type" value="barrier"/>
+  </properties>
+  <objectgroup draworder="index">
+   <object id="5" x="1" y="3">
+    <properties>
+     <property name="boundary_type" value="barrier"/>
+    </properties>
+    <polyline points="0,0 64,-2 63,55 -1,61 -2,9"/>
    </object>
   </objectgroup>
  </tile>

@@ -226,9 +226,9 @@ func (client *Client) controller() {
 
     step := 16.0;
 
-    //pathFindingMove(client, step);
+    pathFindingMove(client, step);
 
-    foolMove(client, step);
+    //foolMove(client, step);
 
     /*
     func (){ //checkChangeDirectionThenMoveProperly
@@ -475,6 +475,13 @@ func (client *Client) initMapStaticResource() models.TmxMap{
 
 	client.InitBarrier(pTmxMapIns, pTsxIns)
 
+  //kobako
+
+  fmt.Println("Barrier");
+  fmt.Println(client.Barrier);
+
+  //kobako
+
   return tmxMapIns;
 }
 
@@ -522,7 +529,16 @@ func (client *Client) InitBarrier(pTmxMapIns *models.TmxMap, pTsxIns *models.Tsx
 		if lay.Name != "tile_1 human skeleton" && lay.Name != "tile_1 board" && lay.Name != "tile_1 stone" {
 			continue
 		}
+    fmt.Println("InitBarrier:");
+    fmt.Println(lay.Name, len(lay.Tile));
+    counter := 0;
 		for index, tile := range lay.Tile {
+      counter = counter + 1;
+      if counter > 20{
+        break;
+      }
+
+      fmt.Printf("tile: %v \n", tile);
 			if tile == nil || tile.Tileset == nil {
 				continue
 			}
@@ -582,6 +598,7 @@ func (client *Client) InitBarrier(pTmxMapIns *models.TmxMap, pTsxIns *models.Tsx
 			b2EmelementBody.SetUserData(barrier)
 			client.Barrier[int32(index)] = barrier
 		}
+    fmt.Println(client.Barrier);
 	}
 }
 

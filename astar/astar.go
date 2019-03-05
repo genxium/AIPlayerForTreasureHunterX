@@ -60,7 +60,16 @@ func heuristicCostEstimate(pt1 Point, pt2 Point) float64{
 }
 
 func (pt Point) nabors() []Point{
-  result := []Point{Point{pt.X - 1, pt.Y}, Point{pt.X + 1, pt.Y}, Point{pt.X, pt.Y - 1}, Point{pt.X, pt.Y + 1}};
+  result := []Point{
+    Point{pt.X - 1, pt.Y},
+    Point{pt.X + 1, pt.Y},
+    Point{pt.X, pt.Y - 1},
+    Point{pt.X, pt.Y + 1},
+    Point{pt.X - 1, pt.Y - 1},
+    Point{pt.X - 1, pt.Y + 1},
+    Point{pt.X + 1, pt.Y - 1},
+    Point{pt.X + 1, pt.Y + 1},
+  };
   return result;
 }
 

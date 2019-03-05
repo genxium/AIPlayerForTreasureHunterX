@@ -8,12 +8,15 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"log"
 	"math"
 	"strconv"
 	"strings"
+	"github.com/ByteArena/box2d"
 )
 
 const (
@@ -107,6 +110,7 @@ type TmxMap struct {
   PathFindingMap astar.Map
   StartPoint Point
   Path []astar.Point
+	World *box2d.B2World
 }
 
 type Point struct{
@@ -264,26 +268,48 @@ func (m *TmxMap) decodeLayerGid() error {
 
 func DeserializeToTsxIns(byteArr []byte, pTsxIns *Tsx) error {
 	err := xml.Unmarshal(byteArr, pTsxIns)
+
+
 	if err != nil {
 		return err
 	}
+
+
 	pPolyLineMap := make(map[int]*TmxPolyline, 0)
+  //对于tsx里面每一个tile
 	for _, tile := range pTsxIns.Tiles {
+
+    //fmt.Println(tile.ObjectGroup); //打印没问题, 说明下面初始化出了问题
+    fmt.Println("TTTTTTTTTTTTTTTTTT")
+    fmt.Println(tile); //打印没问题
+
+    //有type属性的才处理
 		if tile.Properties.Property != nil && tile.Properties.Property[0].Name == "type" {
+      fmt.Println("ININININININ", tile.Id); //打印没问题
+
 			tileObjectGroup := tile.ObjectGroup
 			pPolyLineList := make([]*TmxPolyline, len(tileObjectGroup.TsxObjects))
+
+
+      //对于这个tile的每个TsxObject
 			for index, obj := range tileObjectGroup.TsxObjects {
+        fmt.Println("OOOOOOOOOOOOOO", tile.Id)
+        fmt.Println(obj)
+
 				initPos := &Vec2D{
 					X: obj.X,
 					Y: obj.Y,
 				}
+        //获取pointsArrayWrtInit数组, 一个二维数组(pair)的数组, 各个点
 				singleValueArray := strings.Split(obj.Polyline.Points, " ")
 				pointsArrayWrtInit := make([]Vec2D, len(singleValueArray))
 				for key, value := range singleValueArray {
 					for k, v := range strings.Split(value, ",") {
 						n, err := strconv.ParseFloat(v, 64)
 						if err != nil {
-							return err
+              fmt.Printf("ERRRRRRRRRR!!!!!!!! parse float %f \n" + value);
+              panic(err)
+							//return err
 						}
 						if k%2 == 0 {
 							pointsArrayWrtInit[key].X = n + initPos.X
@@ -292,23 +318,36 @@ func DeserializeToTsxIns(byteArr []byte, pTsxIns *Tsx) error {
 						}
 					}
 				}
+
+        fmt.Println(pointsArrayWrtInit);
+
+        //end
+
+        //根据scale来放大点
 				pointsArrayTransted := make([]*Vec2D, len(pointsArrayWrtInit))
 				var scale float64 = 0.5
 				for key, value := range pointsArrayWrtInit {
 					pointsArrayTransted[key] = &Vec2D{X: value.X - scale*float64(pTsxIns.TileWidth), Y: scale*float64(pTsxIns.TileHeight) - value.Y}
 				}
+        //end
+
 				pPolyLineList[index] = &TmxPolyline{
 					InitPos: initPos,
 					Points:  pointsArrayTransted,
 				}
+        fmt.Printf("%d \n", tile.Id);
 				for _, pros := range obj.Properties {
 					for _, p := range pros.Property {
 						if p.Value == "barrier" {
 							pPolyLineMap[tile.Id] = pPolyLineList[index]
+              fmt.Println("BBBBBBBBBB", tile.Id);
 						}
 					}
 				}
 			}
+      //end对于每个TsxObject
+
+
 			if tile.Properties.Property[0].Value == "highScoreTreasure" {
 				pTsxIns.HigherTreasurePolyLineList = pPolyLineList
 			} else if tile.Properties.Property[0].Value == "lowScoreTreasure" {
@@ -318,9 +357,19 @@ func DeserializeToTsxIns(byteArr []byte, pTsxIns *Tsx) error {
 			} else if "speedShoes" == tile.Properties.Property[0].Value {
 				pTsxIns.SpeedShoesPolyLineList = pPolyLineList
 			}
+
+      fmt.Println("MMMMMMMMMM");
 			pTsxIns.BarrierPolyLineList = pPolyLineMap
-		}
+      fmt.Printf("pPolyLineMap: %v \n", pPolyLineMap);
+		}else{
+      fmt.Printf("NOONONONONNOONN");
+    }
 	}
+
+  fmt.Printf("XXXXXXXXXXXXXXXXXXX \n");
+  fmt.Printf("pTsxIns.BarrierPolyLineList: %v \n", pTsxIns.BarrierPolyLineList);
+
+  //对于tsx里面每一个tile
 	return nil
 }
 
@@ -419,76 +468,8 @@ func DeserializeToTmxMapIns(byteArr []byte, pTmxMapIns *TmxMap) error {
 	if err != nil {
 		return err
 	}
-	// fmt.Printf("%s\n", byteArr)
-  /*
-	for _, objGroup := range pTmxMapIns.ObjectGroups {
-		if "highTreasures" == objGroup.Name {
-			pTmxMapIns.HighTreasuresInfo = make([]TreasuresInfo, len(objGroup.Objects))
-			for index, obj := range objGroup.Objects {
-				tmp := Vec2D{
-					X: obj.X,
-					Y: obj.Y,
-				}
-				treasurePos := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&tmp)
-				pTmxMapIns.HighTreasuresInfo[index].Score = HIGH_SCORE_TREASURE_SCORE
-				pTmxMapIns.HighTreasuresInfo[index].Type = HIGH_SCORE_TREASURE_TYPE
-				pTmxMapIns.HighTreasuresInfo[index].InitPos = treasurePos
-			}
-		}
-		if "treasures" == objGroup.Name {
-			pTmxMapIns.TreasuresInfo = make([]TreasuresInfo, len(objGroup.Objects))
-			for index, obj := range objGroup.Objects {
-				tmp := Vec2D{
-					X: obj.X,
-					Y: obj.Y,
-				}
-				treasurePos := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&tmp)
-				pTmxMapIns.TreasuresInfo[index].Score = TREASURE_SCORE
-				pTmxMapIns.TreasuresInfo[index].Type = TREASURE_TYPE
-				pTmxMapIns.TreasuresInfo[index].InitPos = treasurePos
-			}
-		}
 
-		if "traps" == objGroup.Name {
-			pTmxMapIns.TrapsInitPosList = make([]Vec2D, len(objGroup.Objects))
-			for index, obj := range objGroup.Objects {
-				tmp := Vec2D{
-					X: obj.X,
-					Y: obj.Y,
-				}
-				trapPos := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&tmp)
-				pTmxMapIns.TrapsInitPosList[index] = trapPos
-			}
-		}
-		if "pumpkin" == objGroup.Name {
-			pTmxMapIns.Pumpkin = make([]*Vec2D, len(objGroup.Objects))
-			for index, obj := range objGroup.Objects {
-				tmp := Vec2D{
-					X: obj.X,
-					Y: obj.Y,
-				}
-				pos := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&tmp)
-				pTmxMapIns.Pumpkin[index] = &pos
-			}
-		}
-		//Logger.Info("pumpkinInfo", zap.Any("p:", pTmxMapIns.Pumpkin))
-		if "speed_shoes" == objGroup.Name {
-			pTmxMapIns.SpeedShoesList = make([]SpeedShoesInfo, len(objGroup.Objects))
-			for index, obj := range objGroup.Objects {
-				tmp := Vec2D{
-					X: obj.X,
-					Y: obj.Y,
-				}
-				pos := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&tmp)
-				pTmxMapIns.SpeedShoesList[index].Type = SPEED_SHOES_TYPE
-				pTmxMapIns.SpeedShoesList[index].InitPos = pos
-			}
-		}
-	}
-  */
   pTmxMapIns.decodeObjectLayers();
-  //fmt.Println(pTmxMapIns.HighTreasuresInfo);
-	//return pTmxMapIns.decodeLayerGid()
 	return pTmxMapIns.decodeLayerGidHacked();
 }
 
@@ -548,7 +529,23 @@ func (m *TmxMap) decodeLayerGidHacked() error {
 			}
       //kobako
       if layer.Name == "tile_1 stone" || layer.Name == "tile_1 board" ||layer.Name == "tile_1 human skeleton"{
-        pathFindingMap[index / layer.Width][index % layer.Width] = 1;
+        x := index / layer.Width;
+        y := index % layer.Width;
+        pathFindingMap[x][y]= 1;
+        /*
+        if(y+1 < layer.Height){
+          pathFindingMap[x][y+1]= 1;
+        }
+        if(y-1 >= 0){
+          pathFindingMap[x][y-1]= 1;
+        }
+        if(x+1 < layer.Width){
+          pathFindingMap[x+1][y]= 1;
+        }
+        if(x-1 >= 0){
+          pathFindingMap[x-1][y]= 1;
+        }
+        */
       }
       /*
       if layer.Name == "barrier"{
@@ -625,3 +622,157 @@ func FindPath(tmxMapIns *TmxMap) []astar.Point{
     return path;
 }
 
+func InitBarriers2(pTmxMapIns *TmxMap, pTsxIns *Tsx) []Barrier2{
+
+  result := []Barrier2{};
+
+	gravity := box2d.MakeB2Vec2(0.0, 0.0);
+	world := box2d.MakeB2World(gravity);
+  pTmxMapIns.World = &world;
+
+	for _, lay := range pTmxMapIns.Layers {
+		if lay.Name != "tile_1 human skeleton" && lay.Name != "tile_1 board" && lay.Name != "tile_1 stone" {
+			continue
+		}
+		for index, tile := range lay.Tile {
+			if tile == nil || tile.Tileset == nil {
+				continue
+			}
+
+      /*
+			if tile.Tileset.Source != "tile_1.tsx" {
+				continue
+			}
+      */
+
+			barrier := Barrier2{}
+      //Set coord
+			barrier.X, barrier.Y = pTmxMapIns.GetCoordByGid(index);
+
+      result = append(result, barrier);
+
+
+      //TODO: Get Body
+      //TODO: Init pTsxIns.BarrierPolyLineList error
+
+      fmt.Printf("00000000000 %d \n" , tile.Id);
+      fmt.Println(pTsxIns.BarrierPolyLineList[int(tile.Id)]);
+
+
+      var boundary Polygon2D;
+			if v, ok := pTsxIns.BarrierPolyLineList[int(tile.Id)]; ok {
+				thePoints := make([]*Vec2D, 0)
+				for _, p := range v.Points {
+					thePoints = append(thePoints, &Vec2D{
+						X: p.X,
+						Y: p.Y,
+					})
+				}
+        //Get points
+				//barrier.Boundary = &Polygon2D{Points: thePoints}
+        boundary.Points = thePoints;
+			}
+
+      //Get body def by X,Y
+			var bdDef box2d.B2BodyDef
+			bdDef = box2d.MakeB2BodyDef()
+			bdDef.Type = box2d.B2BodyType.B2_staticBody
+			bdDef.Position.Set(barrier.X, barrier.Y)
+
+			b2BarrierBody := world.CreateBody(&bdDef);
+
+      //Get fixture def by Points
+			fd := box2d.MakeB2FixtureDef()
+			//if boundary != nil {
+			if len(boundary.Points) > 0 {
+				b2Vertices := make([]box2d.B2Vec2, len(boundary.Points))
+				for vIndex, v2 := range boundary.Points {
+					b2Vertices[vIndex] = v2.ToB2Vec2()
+				}
+				b2PolygonShape := box2d.MakeB2PolygonShape()
+				b2PolygonShape.Set(b2Vertices, len(boundary.Points))
+				fd.Shape = &b2PolygonShape
+			} else {
+				b2CircleShape := box2d.MakeB2CircleShape()
+				b2CircleShape.M_radius = 32
+				fd.Shape = &b2CircleShape
+			}
+
+			//fd.Filter.CategoryBits = COLLISION_CATEGORY_BARRIER
+			//fd.Filter.MaskBits = COLLISION_MASK_FOR_BARRIER
+	    fd.Filter.CategoryBits = 2;
+	    fd.Filter.MaskBits = 1;
+			fd.Density = 0.0
+			b2BarrierBody.CreateFixtureFromDef(&fd)
+
+			barrier.CollidableBody = b2BarrierBody
+      result = append(result, barrier);
+			//b2BarrierBody.SetUserData(barrier)
+			//pR.Barriers[int32(index)] = barrier
+      //TODO
+		}
+	}
+
+  return result;
+}
+
+
+func InitMapStaticResource() (TmxMap,Tsx) {
+
+	//relativePath := "./map/map/kobako_test.tmx"
+	relativePath := "./map/map/treasurehunter.tmx"
+	execPath, err := os.Executable()
+  if err != nil{
+    panic(err);
+  }
+
+	pwd, err := os.Getwd()
+  if err != nil{
+    panic(err);
+  }
+
+	fmt.Printf("execPath = %v, pwd = %s, returning...\n", execPath, pwd)
+
+	tmxMapIns := TmxMap{}
+	pTmxMapIns := &tmxMapIns
+	fp := filepath.Join(pwd, relativePath)
+	fmt.Printf("fp == %v\n", fp)
+	if !filepath.IsAbs(fp) {
+		panic("Tmx filepath must be absolute!")
+	}
+
+	byteArr, err := ioutil.ReadFile(fp)
+  if err != nil{
+    panic(err);
+  }
+
+	DeserializeToTmxMapIns(byteArr, pTmxMapIns)
+
+	tsxIns := Tsx{}
+	pTsxIns := &tsxIns
+	relativePath = "./map/map/tile_1.tsx"
+	fp = filepath.Join(pwd, relativePath)
+	fmt.Printf("fp == %v\n", fp)
+	if !filepath.IsAbs(fp) {
+		panic("Filepath must be absolute!")
+	}
+
+	byteArr, err = ioutil.ReadFile(fp)
+  if err != nil{
+    panic(err);
+  }
+
+  err = DeserializeToTsxIns(byteArr, pTsxIns);
+  if err != nil{
+    panic(err);
+  }
+
+  fmt.Println("PPPPPPPPPPPPP");
+  fmt.Println(pTsxIns);
+
+	//client.InitBarrier(pTmxMapIns, pTsxIns)
+  //fmt.Println("++++++++++++");
+  //fmt.Println(tmxMapIns.HighTreasuresInfo);
+  //return nil;
+  return tmxMapIns, tsxIns;
+}

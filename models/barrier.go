@@ -11,3 +11,9 @@ type Barrier struct {
 	Boundary       *Polygon2D
 	CollidableBody *box2d.B2Body
 }
+
+type Barrier2 struct {
+	X              float64
+	Y              float64
+	CollidableBody *box2d.B2Body
+}
