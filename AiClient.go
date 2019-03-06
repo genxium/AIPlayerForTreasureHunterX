@@ -146,12 +146,10 @@ func main() {
     client.CollidableWorld = tmx.World;
     fmt.Println("There are %d barriers", len(barriers))
 
-    collideArray := models.CollideMap(tmx.World, &tmx)
-    collideMap := astar.AstarArrayToMap(collideArray, tmx.Width, tmx.Height)
-    tmx.PathFindingMap = collideMap;
+    tmx.PathFindingMap = models.CollideMap(tmx.World, &tmx);
     //client.AstarMap = collideMap
 
-    models.InitItemsForPathFinding(&tmx)
+    models.SignItemPosOnMap(&tmx)
     tmx.Path = models.FindPath(&tmx);
 
 

@@ -3,7 +3,7 @@ package main
 import(
   "fmt"
 	"AI/models"
-	"AI/astar"
+	//"AI/astar"
 	//"path/filepath"
 	//"os"
 	//"time"
@@ -20,9 +20,8 @@ func main(){
   barriers := models.InitBarriers2(&tmx, &tsx);
   fmt.Println("There are %d barriers", len(barriers))
 
-  theArray := models.CollideMap(tmx.World, &tmx);
-  tmx.PathFindingMap = astar.AstarArrayToMap(theArray, tmx.Width, tmx.Height);
-  models.InitItemsForPathFinding(&tmx);
+  tmx.PathFindingMap = models.CollideMap(tmx.World, &tmx);
+  models.SignItemPosOnMap(&tmx);
   tmx.Path = models.FindPath(&tmx);
 
 

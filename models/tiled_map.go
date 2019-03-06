@@ -560,7 +560,8 @@ func (m *TmxMap) decodeLayerGidHacked() error {
 	return nil
 }
 
-func InitItemsForPathFinding(tmxMapIns *TmxMap){
+//初始化道具位置
+func SignItemPosOnMap(tmxMapIns *TmxMap){
     //初始化奖励位置
   for _, hignTreasure := range tmxMapIns.HighTreasuresInfo{
     fmt.Println(hignTreasure.DiscretePos.Y, hignTreasure.DiscretePos.X);
@@ -782,7 +783,7 @@ func MockPlayerBody(world *box2d.B2World) *box2d.B2Body{
   return b2PlayerBody
 }
 
-func CollideMap(world *box2d.B2World,  pTmx *TmxMap) []int{
+func CollideMap(world *box2d.B2World,  pTmx *TmxMap) astar.Map{
   width := pTmx.Width;
   height := pTmx.Height;
 
@@ -827,5 +828,5 @@ func CollideMap(world *box2d.B2World,  pTmx *TmxMap) []int{
 
   }
 
-  return collideMap
+  return astar.AstarArrayToMap(collideMap, pTmx.Width, pTmx.Height);
 }
