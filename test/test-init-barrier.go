@@ -3,7 +3,7 @@ package main
 import(
   "fmt"
 	"AI/models"
-	//"AI/astar"
+	"AI/astar"
 	//"path/filepath"
 	//"os"
 	//"time"
@@ -45,4 +45,12 @@ func main(){
   }
   */
 
+
+  theMap := models.CollideMap(tmx.World, &tmx)
+  //fmt.Println(theMap)
+
+
+  astar.PrintArray(theMap, tmx.Width, tmx.Height)
 }
+
+

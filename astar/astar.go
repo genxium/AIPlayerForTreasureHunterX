@@ -37,6 +37,17 @@ func hash(pt Point) string{
   return fmt.Sprintf("%d, %d", pt.X, pt.Y);
 }
 
+func AstarArrayToMap(array []int, width int, height int) Map{
+  theMap := make([][]int, height)
+  for i := 0;i<height; i++ {
+    theMap[i] = make([]int, width)
+    for j:=0;j<width;j++{
+      theMap[i][j] = array[i*width + j]
+    }
+  }
+  return theMap
+}
+
 func minimum(openSet mapset.Set, fScore map[string]float64) (string, Point){
   min := math.MaxFloat64;
   key := "";
@@ -186,4 +197,20 @@ func PrintMap(m Map){
     fmt.Println();
   }
   m[0][0] = 99;
+}
+
+func PrintArray(array []int,width int, height int){
+  for row := 0; row < height; row++ {
+    for col := 0; col < width; col++ {
+      switch num := array[row * width + col]; num {
+      case 1:
+        fmt.Printf( "%d ", Red(num));
+      case 9:
+        fmt.Printf( "%d ", Green(num));
+      default:
+        fmt.Printf( "%d ", num);
+      }
+    }
+    fmt.Println();
+  }
 }

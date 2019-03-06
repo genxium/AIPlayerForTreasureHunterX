@@ -135,19 +135,35 @@ func main() {
       //local
 			Player:                &models.Player{Id: constants.PLAYER_ID},
 			Barrier:               make(map[int32]*models.Barrier),
-      AstarMap:              astar.Map{},
+      //AstarMap:              astar.Map{},
       Radian:                math.Pi / 2,
       Dir:                   Direction{Dx: 0, Dy: 1},
 		}
 
-    client.TmxIns = client.initMapStaticResource();
-    models.InitItemsForPathFinding(&client.TmxIns);
-    discretePath := models.FindPath(&client.TmxIns);
+    //client.TmxIns = client.initMapStaticResource();
+    tmx, tsx := models.InitMapStaticResource()
+    barriers := models.InitBarriers2(&tmx, &tsx);
+    client.CollidableWorld = tmx.World;
+    fmt.Println("There are %d barriers", len(barriers))
+
+    collideArray := models.CollideMap(tmx.World, &tmx)
+    collideMap := astar.AstarArrayToMap(collideArray, tmx.Width, tmx.Height)
+    tmx.PathFindingMap = collideMap;
+    //client.AstarMap = collideMap
+
+    models.InitItemsForPathFinding(&tmx)
+    tmx.Path = models.FindPath(&tmx);
+
+
+    fmt.Printf("TMX path: %v", tmx.Path)
+
+    //models.InitItemsForPathFinding(&client.TmxIns);
+    //discretePath := models.FindPath(&client.TmxIns);
 
     var path []models.AccuratePosition;
-    for _, pt := range discretePath{
-      gid := pt.Y * client.TmxIns.Width + pt.X;
-      x, y := client.TmxIns.GetCoordByGid(gid);
+    for _, pt := range tmx.Path{
+      gid := pt.Y * tmx.Width + pt.X;
+      x, y := tmx.GetCoordByGid(gid);
       path = append(path, models.AccuratePosition{
         X: x,
         Y: y,
@@ -378,7 +394,7 @@ func pathFindingMove(client *Client, step float64){
   client.Player.X = client.WalkInfo.CurrentPos.X;
   client.Player.Y = client.WalkInfo.CurrentPos.Y;
 
-  log.Println(client.Player.X, client.Player.Y);
+  //log.Println(client.Player.X, client.Player.Y);
 }
 
 //lastPos := Position{};

@@ -15,5 +15,5 @@ type Barrier struct {
 type Barrier2 struct {
 	X              float64
 	Y              float64
-	CollidableBody *box2d.B2Body
+	Body *box2d.B2Body
 }

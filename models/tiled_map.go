@@ -279,13 +279,8 @@ func DeserializeToTsxIns(byteArr []byte, pTsxIns *Tsx) error {
   //对于tsx里面每一个tile
 	for _, tile := range pTsxIns.Tiles {
 
-    //fmt.Println(tile.ObjectGroup); //打印没问题, 说明下面初始化出了问题
-    fmt.Println("TTTTTTTTTTTTTTTTTT")
-    fmt.Println(tile); //打印没问题
-
     //有type属性的才处理
 		if tile.Properties.Property != nil && tile.Properties.Property[0].Name == "type" {
-      fmt.Println("ININININININ", tile.Id); //打印没问题
 
 			tileObjectGroup := tile.ObjectGroup
 			pPolyLineList := make([]*TmxPolyline, len(tileObjectGroup.TsxObjects))
@@ -293,8 +288,7 @@ func DeserializeToTsxIns(byteArr []byte, pTsxIns *Tsx) error {
 
       //对于这个tile的每个TsxObject
 			for index, obj := range tileObjectGroup.TsxObjects {
-        fmt.Println("OOOOOOOOOOOOOO", tile.Id)
-        fmt.Println(obj)
+        //fmt.Println(obj)
 
 				initPos := &Vec2D{
 					X: obj.X,
@@ -319,7 +313,7 @@ func DeserializeToTsxIns(byteArr []byte, pTsxIns *Tsx) error {
 					}
 				}
 
-        fmt.Println(pointsArrayWrtInit);
+        //fmt.Println(pointsArrayWrtInit);
 
         //end
 
@@ -335,12 +329,11 @@ func DeserializeToTsxIns(byteArr []byte, pTsxIns *Tsx) error {
 					InitPos: initPos,
 					Points:  pointsArrayTransted,
 				}
-        fmt.Printf("%d \n", tile.Id);
+        //fmt.Printf("%d \n", tile.Id);
 				for _, pros := range obj.Properties {
 					for _, p := range pros.Property {
 						if p.Value == "barrier" {
 							pPolyLineMap[tile.Id] = pPolyLineList[index]
-              fmt.Println("BBBBBBBBBB", tile.Id);
 						}
 					}
 				}
@@ -358,16 +351,12 @@ func DeserializeToTsxIns(byteArr []byte, pTsxIns *Tsx) error {
 				pTsxIns.SpeedShoesPolyLineList = pPolyLineList
 			}
 
-      fmt.Println("MMMMMMMMMM");
 			pTsxIns.BarrierPolyLineList = pPolyLineMap
-      fmt.Printf("pPolyLineMap: %v \n", pPolyLineMap);
+      //fmt.Printf("pPolyLineMap: %v \n", pPolyLineMap);
 		}else{
       fmt.Printf("NOONONONONNOONN");
     }
 	}
-
-  fmt.Printf("XXXXXXXXXXXXXXXXXXX \n");
-  fmt.Printf("pTsxIns.BarrierPolyLineList: %v \n", pTsxIns.BarrierPolyLineList);
 
   //对于tsx里面每一个tile
 	return nil
@@ -375,7 +364,7 @@ func DeserializeToTsxIns(byteArr []byte, pTsxIns *Tsx) error {
 
 func (pTmxMapIns *TmxMap) decodeObjectLayers() error{
 	for _, objGroup := range pTmxMapIns.ObjectGroups {
-    fmt.Println(objGroup.Name);
+    //fmt.Println(objGroup.Name);
 		if "highTreasures" == objGroup.Name {
 			pTmxMapIns.HighTreasuresInfo = make([]TreasuresInfo, len(objGroup.Objects))
 			for index, obj := range objGroup.Objects {
@@ -508,10 +497,12 @@ func (pTmxMapIns *TmxMap) continuousObjLayerVecToContinuousMapNodeVec(continuous
 func (m *TmxMap) decodeLayerGidHacked() error {
   //collideMap := [m.Height][m.Width]uint8{};
   //fmt.Println(collideMap);
+  /*
   pathFindingMap := make([][]int, m.Height)
   for i := range pathFindingMap {
     pathFindingMap[i] = make([]int, m.Width)
   }
+  */
 
 	for _, layer := range m.Layers {
     fmt.Println(layer.Name)
@@ -528,35 +519,13 @@ func (m *TmxMap) decodeLayerGidHacked() error {
 				continue
 			}
       //kobako
+      /*
       if layer.Name == "tile_1 stone" || layer.Name == "tile_1 board" ||layer.Name == "tile_1 human skeleton"{
         x := index / layer.Width;
         y := index % layer.Width;
-        pathFindingMap[x][y]= 1;
-        /*
-        if(y+1 < layer.Height){
-          pathFindingMap[x][y+1]= 1;
-        }
-        if(y-1 >= 0){
-          pathFindingMap[x][y-1]= 1;
-        }
-        if(x+1 < layer.Width){
-          pathFindingMap[x+1][y]= 1;
-        }
-        if(x-1 >= 0){
-          pathFindingMap[x-1][y]= 1;
-        }
-        */
-      }
-      /*
-      if layer.Name == "barrier"{
-        pathFindingMap[index / layer.Width][index % layer.Width] = 1;
-      }else if layer.Name == "start"{
-        pathFindingMap[index / layer.Width][index % layer.Width] = 2;
-      }else if layer.Name == "goal"{
-        pathFindingMap[index / layer.Width][index % layer.Width] = 3;
+        //pathFindingMap[x][y]= 1;
       }
       */
-      //kobako
 
 			flipHorizontal := (gid & FLIPPED_HORIZONTALLY_FLAG)
 			flipVertical := (gid & FLIPPED_VERTICALLY_FLAG)
@@ -587,7 +556,7 @@ func (m *TmxMap) decodeLayerGidHacked() error {
 	}
 
   //astar.PrintMap(pathFindingMap);
-  m.PathFindingMap = pathFindingMap;
+  //m.PathFindingMap = pathFindingMap;
 	return nil
 }
 
@@ -645,22 +614,19 @@ func InitBarriers2(pTmxMapIns *TmxMap, pTsxIns *Tsx) []Barrier2{
 			}
       */
 
-			barrier := Barrier2{}
-      //Set coord
-			barrier.X, barrier.Y = pTmxMapIns.GetCoordByGid(index);
-
-      result = append(result, barrier);
+      //result = append(result, barrier);
 
 
       //TODO: Get Body
-      //TODO: Init pTsxIns.BarrierPolyLineList error
 
-      fmt.Printf("00000000000 %d \n" , tile.Id);
-      fmt.Println(pTsxIns.BarrierPolyLineList[int(tile.Id)]);
+      //fmt.Printf("00000000000 %d \n" , tile.Id);
+      //OK
+      //fmt.Println(pTsxIns.BarrierPolyLineList[int(tile.Id)]);
 
 
-      var boundary Polygon2D;
 			if v, ok := pTsxIns.BarrierPolyLineList[int(tile.Id)]; ok {
+
+        //fmt.Printf("Get BarrierPolyLineList of %d OK!", tile.Id);
 				thePoints := make([]*Vec2D, 0)
 				for _, p := range v.Points {
 					thePoints = append(thePoints, &Vec2D{
@@ -668,48 +634,58 @@ func InitBarriers2(pTmxMapIns *TmxMap, pTsxIns *Tsx) []Barrier2{
 						Y: p.Y,
 					})
 				}
+
+        boundary := Polygon2D{};
+        boundary.Points = thePoints;
+
         //Get points
 				//barrier.Boundary = &Polygon2D{Points: thePoints}
-        boundary.Points = thePoints;
-			}
+  			barrier := Barrier2{}
+        //Set coord
+  			barrier.X, barrier.Y = pTmxMapIns.GetCoordByGid(index);
 
-      //Get body def by X,Y
-			var bdDef box2d.B2BodyDef
-			bdDef = box2d.MakeB2BodyDef()
-			bdDef.Type = box2d.B2BodyType.B2_staticBody
-			bdDef.Position.Set(barrier.X, barrier.Y)
 
-			b2BarrierBody := world.CreateBody(&bdDef);
+        //fmt.Printf("Tile of %d Have collider, init body for it, barrers length : %d", tile.Id, len(result));
+    
+        //Get body def by X,Y
+  			var bdDef box2d.B2BodyDef
+  			bdDef = box2d.MakeB2BodyDef()
+  			bdDef.Type = box2d.B2BodyType.B2_staticBody
+  			bdDef.Position.Set(barrier.X, barrier.Y)
+  
+  			b2BarrierBody := world.CreateBody(&bdDef);
+  
+        //Get fixture def by Points
+  			fd := box2d.MakeB2FixtureDef()
+  			if len(boundary.Points) > 0 { //是多边形
+  				b2Vertices := make([]box2d.B2Vec2, len(boundary.Points))
+  				for vIndex, v2 := range boundary.Points {
+  					b2Vertices[vIndex] = v2.ToB2Vec2()
+  				}
+  				b2PolygonShape := box2d.MakeB2PolygonShape()
+  				b2PolygonShape.Set(b2Vertices, len(boundary.Points))
+  				fd.Shape = &b2PolygonShape
+  			} else {
+  				b2CircleShape := box2d.MakeB2CircleShape()
+  				b2CircleShape.M_radius = 32
+  				fd.Shape = &b2CircleShape
+  			}
+  
+  			//fd.Filter.CategoryBits = COLLISION_CATEGORY_BARRIER
+  			//fd.Filter.MaskBits = COLLISION_MASK_FOR_BARRIER
+  	    fd.Filter.CategoryBits = 2;
+  	    fd.Filter.MaskBits = 1;
+  			fd.Density = 0.0
+  			b2BarrierBody.CreateFixtureFromDef(&fd)
+  
+  			barrier.Body = b2BarrierBody
+        result = append(result, barrier);
+        //fmt.Printf("Appended, result len: %d \n", len(result));
 
-      //Get fixture def by Points
-			fd := box2d.MakeB2FixtureDef()
-			//if boundary != nil {
-			if len(boundary.Points) > 0 {
-				b2Vertices := make([]box2d.B2Vec2, len(boundary.Points))
-				for vIndex, v2 := range boundary.Points {
-					b2Vertices[vIndex] = v2.ToB2Vec2()
-				}
-				b2PolygonShape := box2d.MakeB2PolygonShape()
-				b2PolygonShape.Set(b2Vertices, len(boundary.Points))
-				fd.Shape = &b2PolygonShape
-			} else {
-				b2CircleShape := box2d.MakeB2CircleShape()
-				b2CircleShape.M_radius = 32
-				fd.Shape = &b2CircleShape
-			}
+			}else{
+        fmt.Printf("Have no collider!!!");
+      }
 
-			//fd.Filter.CategoryBits = COLLISION_CATEGORY_BARRIER
-			//fd.Filter.MaskBits = COLLISION_MASK_FOR_BARRIER
-	    fd.Filter.CategoryBits = 2;
-	    fd.Filter.MaskBits = 1;
-			fd.Density = 0.0
-			b2BarrierBody.CreateFixtureFromDef(&fd)
-
-			barrier.CollidableBody = b2BarrierBody
-      result = append(result, barrier);
-			//b2BarrierBody.SetUserData(barrier)
-			//pR.Barriers[int32(index)] = barrier
-      //TODO
 		}
 	}
 
@@ -720,6 +696,7 @@ func InitBarriers2(pTmxMapIns *TmxMap, pTsxIns *Tsx) []Barrier2{
 func InitMapStaticResource() (TmxMap,Tsx) {
 
 	//relativePath := "./map/map/kobako_test.tmx"
+	//relativePath := "./map/map/kobako_test2.tmx"
 	relativePath := "./map/map/treasurehunter.tmx"
 	execPath, err := os.Executable()
   if err != nil{
@@ -767,12 +744,88 @@ func InitMapStaticResource() (TmxMap,Tsx) {
     panic(err);
   }
 
-  fmt.Println("PPPPPPPPPPPPP");
-  fmt.Println(pTsxIns);
+  //fmt.Println("PPPPPPPPPPPPP");
+  //fmt.Println(pTsxIns);
 
 	//client.InitBarrier(pTmxMapIns, pTsxIns)
   //fmt.Println("++++++++++++");
   //fmt.Println(tmxMapIns.HighTreasuresInfo);
   //return nil;
   return tmxMapIns, tsxIns;
+}
+
+
+
+func MockPlayerBody(world *box2d.B2World) *box2d.B2Body{
+	var bdDef box2d.B2BodyDef
+	//colliderOffset := box2d.MakeB2Vec2(0, 0) // Matching that of client-side setting.
+	bdDef = box2d.MakeB2BodyDef()
+	bdDef.Type = box2d.B2BodyType.B2_dynamicBody
+	bdDef.Position.Set(0, 0)
+
+	b2PlayerBody := world.CreateBody(&bdDef)
+
+	b2CircleShape := box2d.MakeB2CircleShape()
+	b2CircleShape.M_radius = 32 // Matching that of client-side setting.
+
+	fd := box2d.MakeB2FixtureDef()
+	fd.Shape = &b2CircleShape
+
+	//fd.Filter.CategoryBits = COLLISION_CATEGORY_CONTROLLED_PLAYER
+	//fd.Filter.MaskBits = COLLISION_MASK_FOR_CONTROLLED_PLAYER
+  //mark
+	fd.Filter.CategoryBits = 1;
+	fd.Filter.MaskBits = 2;
+
+	fd.Density = 0.0
+	b2PlayerBody.CreateFixtureFromDef(&fd)
+  return b2PlayerBody
+}
+
+func CollideMap(world *box2d.B2World,  pTmx *TmxMap) []int{
+  width := pTmx.Width;
+  height := pTmx.Height;
+
+  uniformTimeStepSeconds := 1.0 / 60.0
+  uniformVelocityIterations := 0
+  uniformPositionIterations := 0
+
+  collideMap := make([]int, width * height)
+
+  playerBody := MockPlayerBody(world)
+
+  for k, _ := range collideMap{
+    x, y := pTmx.GetCoordByGid(k)
+    /*
+  	playerBody.x = x
+  	playerBody.y = y
+    */
+
+		newB2Vec2Pos := box2d.MakeB2Vec2(x, y)
+		MoveDynamicBody(playerBody, &newB2Vec2Pos, 0)
+
+    world.Step(uniformTimeStepSeconds, uniformVelocityIterations,uniformPositionIterations)
+
+    /*
+  	if(playerBody.collided){
+  		collideMap[gid] = 1
+  	}
+    */
+
+    collided := false;
+		for edge := playerBody.GetContactList(); edge != nil; edge = edge.Next {
+			if edge.Contact.IsTouching() {
+        collided = true;
+        //log.Printf("player contact at gid %d ", k);
+        break;
+			}
+		}
+
+    if(collided){
+      collideMap[k] = 1;
+    }
+
+  }
+
+  return collideMap
 }

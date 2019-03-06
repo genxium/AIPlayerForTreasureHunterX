@@ -10,7 +10,7 @@
     <properties>
      <property name="boundary_type" value="barrier"/>
     </properties>
-    <polyline points="0,0 -62.6667,0.666667 -62.6667,64.6667 0.666667,65.3333 0.33333,1.33333"/>
+    <polyline points="2,-3 -65.6667,-6.33333 -65.6667,63.6667 3.66667,68.3333 5.33333,1.33333"/>
    </object>
   </objectgroup>
  </tile>

@@ -1,9 +1,9 @@
 package main
 
 import(
-  //"fmt"
+  "fmt"
 	"AI/models"
-	//"AI/astar"
+	"AI/astar"
 	//"path/filepath"
 	//"os"
 	//"time"
@@ -13,19 +13,17 @@ import(
 func main(){
   //fmt.Println();
   //tmxMapIns, tsx := models.InitMapStaticResource();
-  tmx, _ := models.InitMapStaticResource();
+  tmx, tsx := models.InitMapStaticResource();
+  //ptmx, ptsx := &tmx, &tsx;
   //tmxMapIns.PathFindingMap()
 
+  barriers := models.InitBarriers2(&tmx, &tsx);
+  fmt.Println("There are %d barriers", len(barriers))
 
-  //fmt.Println("1111111111111111111");
-  //fmt.Println(tsx);
-
-  //barriers := InitBarriers2(&tmx, &tsx);
-
-  //fmt.Println(tsx);
-
+  theArray := models.CollideMap(tmx.World, &tmx);
+  tmx.PathFindingMap = astar.AstarArrayToMap(theArray, tmx.Width, tmx.Height);
   models.InitItemsForPathFinding(&tmx);
-  models.FindPath(&tmx);
+  tmx.Path = models.FindPath(&tmx);
 
 
   //walkInfo := models.AstarPathToWalkInfo(tmxMapIns.Path);
