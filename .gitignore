@@ -8,3 +8,4 @@ node_modules/*
 *.sqlite
 **/*kobako*
 **/.DS_Store
+AI
