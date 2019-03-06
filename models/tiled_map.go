@@ -560,7 +560,7 @@ func (m *TmxMap) decodeLayerGidHacked() error {
 	return nil
 }
 
-//初始化道具位置
+//在离散的二维数组上初始化道具位置
 func SignItemPosOnMap(tmxMapIns *TmxMap){
     //初始化奖励位置
   for _, hignTreasure := range tmxMapIns.HighTreasuresInfo{
@@ -572,7 +572,7 @@ func SignItemPosOnMap(tmxMapIns *TmxMap){
 }
 
 
-//从tmxIns取出信息并用于初始化寻路地图, 存储在
+//通过离散的二维数组进行寻路, 返回一个Point数组
 func FindPath(tmxMapIns *TmxMap) []astar.Point{
 
     //InitMapItems(tmxMapIns);
@@ -592,6 +592,7 @@ func FindPath(tmxMapIns *TmxMap) []astar.Point{
     return path;
 }
 
+//初始化Box2d Wolrd, 读取所有tmx里的barrier, 为其创建CollidableBody 
 func InitBarriers2(pTmxMapIns *TmxMap, pTsxIns *Tsx) []Barrier2{
 
   result := []Barrier2{};
@@ -694,11 +695,8 @@ func InitBarriers2(pTmxMapIns *TmxMap, pTsxIns *Tsx) []Barrier2{
 }
 
 
-func InitMapStaticResource() (TmxMap,Tsx) {
-
-	//relativePath := "./map/map/kobako_test.tmx"
-	//relativePath := "./map/map/kobako_test2.tmx"
-	relativePath := "./map/map/treasurehunter.tmx"
+//根据tmx路径初始化TmxMap以及Tsx(TODO: Tsx路径现在是hardcode的)
+func InitMapStaticResource(relativePath string) (TmxMap,Tsx) {
 	execPath, err := os.Executable()
   if err != nil{
     panic(err);
@@ -745,13 +743,6 @@ func InitMapStaticResource() (TmxMap,Tsx) {
     panic(err);
   }
 
-  //fmt.Println("PPPPPPPPPPPPP");
-  //fmt.Println(pTsxIns);
-
-	//client.InitBarrier(pTmxMapIns, pTsxIns)
-  //fmt.Println("++++++++++++");
-  //fmt.Println(tmxMapIns.HighTreasuresInfo);
-  //return nil;
   return tmxMapIns, tsxIns;
 }
 
@@ -783,6 +774,7 @@ func MockPlayerBody(world *box2d.B2World) *box2d.B2Body{
   return b2PlayerBody
 }
 
+//根据world里的collidableBody信息初始化一个离散的二维数组, 0为可通行区域, 1为障碍物
 func CollideMap(world *box2d.B2World,  pTmx *TmxMap) astar.Map{
   width := pTmx.Width;
   height := pTmx.Height;

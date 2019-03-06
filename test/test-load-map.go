@@ -11,11 +11,7 @@ import(
 )
 
 func main(){
-  //fmt.Println();
-  //tmxMapIns, tsx := models.InitMapStaticResource();
-  tmx, tsx := models.InitMapStaticResource();
-  //ptmx, ptsx := &tmx, &tsx;
-  //tmxMapIns.PathFindingMap()
+  tmx, tsx := models.InitMapStaticResource("./map/map/treasurehunter.tmx");
 
   barriers := models.InitBarriers2(&tmx, &tsx);
   fmt.Println("There are %d barriers", len(barriers))

@@ -140,24 +140,20 @@ func main() {
       Dir:                   Direction{Dx: 0, Dy: 1},
 		}
 
-    //client.TmxIns = client.initMapStaticResource();
-    tmx, tsx := models.InitMapStaticResource()
+    //初始化地图资源
+    tmx, tsx := models.InitMapStaticResource("./map/map/treasurehunter.tmx");
     barriers := models.InitBarriers2(&tmx, &tsx);
     client.CollidableWorld = tmx.World;
     fmt.Println("There are %d barriers", len(barriers))
 
     tmx.PathFindingMap = models.CollideMap(tmx.World, &tmx);
-    //client.AstarMap = collideMap
 
     models.SignItemPosOnMap(&tmx)
     tmx.Path = models.FindPath(&tmx);
 
-
     fmt.Printf("TMX path: %v", tmx.Path)
 
-    //models.InitItemsForPathFinding(&client.TmxIns);
-    //discretePath := models.FindPath(&client.TmxIns);
-
+    //将离散的路径转为连续坐标, 初始化walkInfo, 每次controller的时候调用
     var path []models.AccuratePosition;
     for _, pt := range tmx.Path{
       gid := pt.Y * tmx.Width + pt.X;
