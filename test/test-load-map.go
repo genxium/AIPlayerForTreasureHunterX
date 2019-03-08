@@ -18,7 +18,9 @@ func main(){
 
   tmx.PathFindingMap = models.CollideMap(tmx.World, &tmx);
   models.SignItemPosOnMap(&tmx);
+
   tmx.Path = models.FindPath(&tmx);
+
 
 
   //walkInfo := models.AstarPathToWalkInfo(tmxMapIns.Path);

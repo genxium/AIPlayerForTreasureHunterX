@@ -149,6 +149,11 @@ func main() {
     tmx.PathFindingMap = models.CollideMap(tmx.World, &tmx);
 
     models.SignItemPosOnMap(&tmx)
+
+    //kobako 用于测试守护塔, 如果寻路不正确先注释这个
+    //tmx.PathFindingMap[14][18] = 3;
+    //kobako for test
+
     tmx.Path = models.FindPath(&tmx);
 
     fmt.Printf("TMX path: %v", tmx.Path)
@@ -437,6 +442,7 @@ func (client *Client) decodeProtoBuf(message []byte) {
   fmt.Println(client.Player.Id);
   */
 
+  //根据最新一帧的信息设置bot玩家的新位置及方向等
 	client.LastRoomDownsyncFrame = &room_downsync_frame
 	client.Player.Speed = room_downsync_frame.Players[int32(client.Player.Id)].Speed
 	client.Player.Dir = room_downsync_frame.Players[int32(client.Player.Id)].Dir
