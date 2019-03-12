@@ -279,6 +279,7 @@
    <polyline points="0,0 -78.7879,-1.27898e-13 -66.6667,3121.21 1.13687e-13,3121.21"/>
   </object>
  </objectgroup>
+
  <objectgroup id="6" name="lowScoreTreasures">
   <object id="62" x="600" y="2648">
    <point/>

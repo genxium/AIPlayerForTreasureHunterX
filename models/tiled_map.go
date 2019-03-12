@@ -72,11 +72,19 @@ type TmxTileset struct {
 	Source     string     `xml:"source,attr"`
 }
 
+//NEWMAP
+type Polyline struct {
+  //Points []*Vec2D `xml:"points,attr"`
+  Points string `xml:"points,attr"`
+}
+
 type TmxObject struct {
 	Id         string        `xml:"id,attr"`
 	X          float64       `xml:"x,attr"`
 	Y          float64       `xml:"y,attr"`
 	Properties TmxProperties `xml:"properties"`
+  //NEWMAP
+  Polyline   Polyline      `xml:"polyline"`
 }
 
 type TmxObjectGroup struct {
@@ -718,6 +726,113 @@ func InitBarriers2(pTmxMapIns *TmxMap, pTsxIns *Tsx) []Barrier2{
 		}
 	}
 
+
+  //fmt.Printf("-----------------  %d \n",len(pTmxMapIns.ObjectGroups))
+  //kobako: 加入新地图后, 从objectLayer的objectlayer of barrier 读取collide body放入world
+  //NEWMAP
+	for _, objGroup := range pTmxMapIns.ObjectGroups {
+    fmt.Printf("objGroupName: %v \n", objGroup.Name)
+    if "barrier" == objGroup.Name { //特殊处理, 初始化为collider body并且放入world
+      fmt.Printf("objGroup: %v \n", objGroup)
+      for _, obj := range objGroup.Objects{
+          //fmt.Printf("PolyLine: %v \n", obj.Polyline)
+
+          initPos := Vec2D{
+            X: obj.X,
+            Y: obj.Y,
+          }
+
+          barrierCoord := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&initPos)
+
+
+          //Init Polygon body
+  				singleValueArray := strings.Split(obj.Polyline.Points, " ")
+  				pointsArrayWrtInit := make([]Vec2D, len(singleValueArray))
+
+          
+  				for key, value := range singleValueArray {
+  					for k, v := range strings.Split(value, ",") {
+  						n, err := strconv.ParseFloat(v, 64)
+  						if err != nil {
+                fmt.Printf("ERRRRRRRRRR!!!!!!!! parse float %f \n" + value);
+                panic(err)
+  							//return err
+  						}
+  						if k%2 == 0 {
+  							pointsArrayWrtInit[key].X = n + initPos.X
+  						} else {
+  							pointsArrayWrtInit[key].Y = n + initPos.Y
+  						}
+  					}
+  				}
+
+          /*
+          //根据scale来放大点
+  				pointsArrayTransted := make([]*Vec2D, len(pointsArrayWrtInit))
+  				var scale float64 = 0.5
+  				//var scale float64 = 1
+  				for key, value := range pointsArrayWrtInit {
+  					pointsArrayTransted[key] = &Vec2D{X: value.X - scale*float64(pTsxIns.TileWidth), Y: scale*float64(pTsxIns.TileHeight) - value.Y}
+  				}
+          */
+
+          fmt.Printf("PolyLine: %v \n", pointsArrayWrtInit)
+
+          //scale := 0.5
+          scale := 1.0
+  				pointsArrayTransted := make([]*Vec2D, len(pointsArrayWrtInit))
+  				for key, value := range pointsArrayWrtInit {
+  					//pointsArrayTransted[key] = &Vec2D{X: value.X - scale*float64(pTsxIns.TileWidth), Y: scale*float64(pTsxIns.TileHeight) - value.Y}
+            
+            vec := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&Vec2D{
+              X: value.X * scale,
+              Y: value.Y * scale,
+            })
+  					pointsArrayTransted[key] = &vec
+  				}
+
+
+          //fmt.Printf("PolyLine: %v \n", pointsArrayWrtInit)
+
+          {
+            //CreateBody
+      
+            //Get body def by X,Y
+      			var bdDef box2d.B2BodyDef
+      			bdDef = box2d.MakeB2BodyDef()
+      			bdDef.Type = box2d.B2BodyType.B2_staticBody
+      			bdDef.Position.Set(barrierCoord.X, barrierCoord.Y)
+      
+      			b2BarrierBody := world.CreateBody(&bdDef);
+      
+            //Get fixture def by Points
+      			fd := box2d.MakeB2FixtureDef()
+            {
+      				b2Vertices := make([]box2d.B2Vec2, len(pointsArrayTransted))
+      				for vIndex, vec := range pointsArrayTransted {
+      					b2Vertices[vIndex] = vec.ToB2Vec2()
+      				}
+      				b2PolygonShape := box2d.MakeB2PolygonShape()
+      				b2PolygonShape.Set(b2Vertices, len(pointsArrayTransted))
+      				fd.Shape = &b2PolygonShape
+            }
+      
+      			//fd.Filter.CategoryBits = COLLISION_CATEGORY_BARRIER
+      			//fd.Filter.MaskBits = COLLISION_MASK_FOR_BARRIER
+      	    fd.Filter.CategoryBits = 2;
+      	    fd.Filter.MaskBits = 1;
+      			fd.Density = 0.0
+      			b2BarrierBody.CreateFixtureFromDef(&fd)
+  
+          }
+ 
+
+
+      }
+    }
+  }
+
+
   return result;
 }
 
@@ -753,7 +868,8 @@ func InitMapStaticResource(relativePath string) (TmxMap,Tsx) {
 
 	tsxIns := Tsx{}
 	pTsxIns := &tsxIns
-	relativePath = "./map/map/tile_1.tsx"
+	//relativePath = "./map/map/tile_1.tsx"
+	relativePath = "./map/map/pacman/Tile_W64_H64_S01.tsx"
 	fp = filepath.Join(pwd, relativePath)
 	fmt.Printf("fp == %v\n", fp)
 	if !filepath.IsAbs(fp) {
