@@ -89,8 +89,11 @@ type Client struct {
   AstarMap              astar.Map
   Radian                float64
   Dir                   Direction
+
   TmxIns                models.TmxMap
   WalkInfo              models.WalkInfo
+  RemovedTreasuresNum   int
+	Treasures             map[int32]*models.Treasure //接受到第一帧的时候初始化
 }
 
 
@@ -142,6 +145,7 @@ func main() {
 
     //初始化地图资源
     tmx, tsx := models.InitMapStaticResource("./map/map/treasurehunter.tmx");
+    client.TmxIns = tmx
     barriers := models.InitBarriers2(&tmx, &tsx);
     client.CollidableWorld = tmx.World;
     fmt.Println("There are %d barriers", len(barriers))
@@ -159,11 +163,11 @@ func main() {
     fmt.Printf("TMX path: %v", tmx.Path)
 
     //将离散的路径转为连续坐标, 初始化walkInfo, 每次controller的时候调用
-    var path []models.AccuratePosition;
+    var path []models.Vec2D;
     for _, pt := range tmx.Path{
       gid := pt.Y * tmx.Width + pt.X;
       x, y := tmx.GetCoordByGid(gid);
-      path = append(path, models.AccuratePosition{
+      path = append(path, models.Vec2D{
         X: x,
         Y: y,
       })
@@ -189,9 +193,10 @@ func main() {
 				respPb = new(wsRespPb)
 				err := c.ReadJSON(respPb)
 				if err != nil {
-					//log.Println("marshal respPb:", err)
+					log.Println("marshal respPb:", err)
 				}
 				client.decodeProtoBuf(respPb.Data)
+        client.checkReFindPath()//kobako
 				client.controller()
 				client.upsyncFrameData()
 			} else {
@@ -222,6 +227,62 @@ func main() {
 	}
 }
 
+
+func (client *Client) initItemAndPlayers(){
+  //TODO: 根据第一帧的数据来设置好玩家的位置, 以及宝物的位置,以服务器为准
+  initFullFrame := client.LastRoomDownsyncFrame
+  //Init treasures
+  client.Treasures =  initFullFrame.Treasures
+
+  //Sign on map
+  tmx := client.TmxIns
+
+  {//Init ContinuousPosMap
+    //将离散的点转换成连续的点, 用于确认道具的位置(遍历每个点判断相对距离最短)
+    var continuousPosMap [][]models.Vec2D
+    continuousPosMap = make([][]models.Vec2D, tmx.Height)
+    for i:=0; i<tmx.Height; i++{
+      continuousPosMap[i] = make([]models.Vec2D, tmx.Width)
+    }
+    for i:=0; i<tmx.Height; i++ {
+      for j:=0; j<tmx.Width; j++ {
+        gid := i * tmx.Width + j
+        x,y := tmx.GetCoordByGid(gid)
+        continuousPosMap[i][j].X = x
+        continuousPosMap[i][j].Y = y
+      }
+    }
+    tmx.ContinuousPosMap = continuousPosMap
+  }
+
+  //fmt.Printf("+++++++++++++++++++ %v", tmx)
+  //fmt.Println(tmx.ContinuousPosMap)
+
+  {
+    var treasureMap map[int32]models.Point
+    treasureMap = make(map[int32]models.Point)
+    //TODO: 对每一个宝物, 遍历地图找到距离最近的离散点, 标记为宝物
+    for _, treasure := range client.Treasures{
+      coord := models.Vec2D{
+        X: treasure.X,
+        Y: treasure.Y,
+      }
+      discretePoint := tmx.CoordToPoint(coord)
+      treasureMap[treasure.Id] = discretePoint
+
+      fmt.Printf("Treasure: %v \n", treasureMap[treasure.Id])
+    }
+  }
+
+  client.TmxIns = tmx
+}
+
+func (client *Client) checkReFindPath(){
+  //lastFrame := client.LastRoomDownsyncFrame
+  //if(lastFrame.)
+  //TODO: 
+}
+
 func (client *Client) controller() {
 	if client.Player.Speed == 0 {
 		return
@@ -230,6 +291,9 @@ func (client *Client) controller() {
 		client.InitColliders()
 		client.BattleState = IN_BATTLE
 		log.Println("Game Start")
+    //mark
+    client.initItemAndPlayers()
+    //fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", client.LastRoomDownsyncFrame.Id, len(client.LastRoomDownsyncFrame.Treasures), client.LastRoomDownsyncFrame.RefFrameId)
 	} else {
 		//models.PrettyPrintBody(client.PlayerCollidableBody)
 		//client.Player.Y = client.Player.Y - 5
@@ -244,74 +308,6 @@ func (client *Client) controller() {
     pathFindingMove(client, step);
 
     //foolMove(client, step);
-
-    /*
-    func (){ //checkChangeDirectionThenMoveProperly
-
-      nowRadian := client.Radian;
-
-      for nowRadian - client.Radian < math.Pi * 2 {
-        xStep := step * math.Cos(nowRadian);
-        yStep := step * math.Sin(nowRadian);
-        //fmt.Println(xStep, yStep);
-
-        //移动collideBody
-    		newB2Vec2Pos := box2d.MakeB2Vec2(client.Player.X + xStep, client.Player.Y - yStep);
-    		//newB2Vec2Pos := box2d.MakeB2Vec2(client.Player.X, client.Player.Y - yStep);
-    		models.MoveDynamicBody(client.PlayerCollidableBody, &newB2Vec2Pos, 0);
-    
-        //world.Step
-        client.CollidableWorld.Step(uniformTimeStepSeconds, uniformVelocityIterations,uniformPositionIterations)
-    
-        //碰撞检测
-        collided := false;
-    		for edge := client.PlayerCollidableBody.GetContactList(); edge != nil; edge = edge.Next {
-    			if edge.Contact.IsTouching() {
-            collided = true;
-            break;
-    				//log.Println("player conteact")
-    				if _, ok := edge.Other.GetUserData().(*models.Barrier); ok {
-    					//log.Println("player conteact to the barrier")
-    				}
-    			}
-    		}
-    
-        if(!collided){ //一直走
-          client.Player.X = client.Player.X + xStep;
-          client.Player.Y = client.Player.Y - yStep;
-
-          //kobako
-          //TODO: set correct direction
-          dx, dy := func() (dx float64, dy float64){
-            floorRadian := nowRadian - math.Pi * 2 * math.Floor(nowRadian / (2 * math.Pi)); 
-            //fmt.Println(floorRadian);
-            if floorRadian < math.Pi / 2 { return 2, -1; }else if floorRadian < math.Pi{
-              return -2, -1;
-            }else if floorRadian < math.Pi * 3 / 2{
-              return -2, 1;
-            }else {
-              return 2, 1;
-            }
-          }()
-          client.Dir = Direction{
-            Dx: dx,
-            Dy: dy,
-          }
-          //fmt.Println(dx, dy)
-          //kobako
-          break;
-        }else{//转向
-          log.Println("player collided with barriers & change direction: ", nowRadian);
-          nowRadian = nowRadian + math.Pi / 16;
-
-        }
-      }
-
-      client.Radian = nowRadian;
-
-    }()
-    */
-
 		time.Sleep(time.Duration(int64(40)))
 	}
 
@@ -410,6 +406,9 @@ func (client *Client) upsyncFrameData() {
 			Dir           Direction         `json:"dir"`
 			AckingFrameId int32             `json:"AckingFrameId"`
 		}{client.Player.Id, client.Player.X, client.Player.Y, Direction{}, client.LastRoomDownsyncFrame.Id}
+
+    //fmt.Println(newFrame.AckingFrameId)
+
 		newFrameByte, err := json.Marshal(newFrame)
 		if err != nil {
 			log.Println("json Marshal:", err)
@@ -429,6 +428,7 @@ func (client *Client) upsyncFrameData() {
 	}
 }
 
+//kobako: 从下行帧解析宝物信息是否减少
 func (client *Client) decodeProtoBuf(message []byte) {
 	room_downsync_frame := models.RoomDownsyncFrame{}
 	err := proto.Unmarshal(message, &room_downsync_frame)
@@ -442,12 +442,26 @@ func (client *Client) decodeProtoBuf(message []byte) {
   fmt.Println(client.Player.Id);
   */
 
+  //fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", room_downsync_frame.Id, len(room_downsync_frame.Treasures), room_downsync_frame.RefFrameId)
+
   //根据最新一帧的信息设置bot玩家的新位置及方向等
 	client.LastRoomDownsyncFrame = &room_downsync_frame
 	client.Player.Speed = room_downsync_frame.Players[int32(client.Player.Id)].Speed
 	client.Player.Dir = room_downsync_frame.Players[int32(client.Player.Id)].Dir
 	client.Player.X = room_downsync_frame.Players[int32(client.Player.Id)].X
 	client.Player.Y = room_downsync_frame.Players[int32(client.Player.Id)].Y
+
+
+  //fmt.Printf("Treasures length: %d \n", len(room_downsync_frame.Treasures))
+  /*
+  for k, v := range room_downsync_frame.Treasures{
+    //fmt.Printf("ID: %d, X: %d, Y: %d || ", v.Id, v.Removed, v.X, v.Y)
+    fmt.Printf("k: %d, v: %v || ", k, v)
+  }
+  fmt.Println()
+  */
+  //fmt.Printf("Bullet length: %d \n", len(room_downsync_frame.Bullets))
+
 }
 
 //kobako: Hacked in and stored some info for path finding in the tmxIns

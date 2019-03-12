@@ -108,6 +108,7 @@ type TmxMap struct {
 
   //kobako
   PathFindingMap astar.Map
+  ContinuousPosMap [][]Vec2D
   StartPoint Point
   Path []astar.Point
 	World *box2d.B2World
@@ -231,6 +232,32 @@ func (m *TmxMap) GetCoordByGid(index int) (x float64, y float64) {
 	tmp := &Vec2D{x, y}
 	vec2 := m.continuousObjLayerVecToContinuousMapNodeVec(tmp)
 	return vec2.X, vec2.Y
+}
+
+/**
+ *  TODO: 现在的做法是遍历整个地图, 选取距离最近的一个离散点, 正确的做法需要
+ *  从cocos解析器搬运过来
+ */
+func (tmx *TmxMap) CoordToPoint(coord Vec2D) Point {
+  var minDistance float64 = 9999999
+
+  var result Point = Point{
+    X: -1,
+    Y: -1,
+  }
+
+  for i:=0; i<tmx.Height; i++ {
+    for j:=0; j<tmx.Width; j++ {
+      tilePos := tmx.ContinuousPosMap[i][j]
+      distance := Distance(coord, tilePos)
+      if distance < minDistance{
+        minDistance = distance
+        result.X = j
+        result.Y = i
+      }
+    }
+  }
+  return result
 }
 
 func (m *TmxMap) decodeLayerGid() error {
@@ -785,6 +812,11 @@ func CollideMap(world *box2d.B2World,  pTmx *TmxMap) astar.Map{
 
   collideMap := make([]int, width * height)
 
+
+  /**
+   *  初始化一个假的玩家body, 遍历所有格子, 将这个body放到格子的正中间, 用box2d判断是否发生碰撞, 如果碰撞标记1
+   */
+
   playerBody := MockPlayerBody(world)
 
   for k, _ := range collideMap{
@@ -822,3 +854,4 @@ func CollideMap(world *box2d.B2World,  pTmx *TmxMap) astar.Map{
 
   return astar.AstarArrayToMap(collideMap, pTmx.Width, pTmx.Height);
 }
+

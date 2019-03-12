@@ -6,18 +6,20 @@ import(
   "AI/astar"
 )
 
-type AccuratePosition struct {
+/*
+type Vec2D struct {
   X float64
   Y float64
 }
+*/
 
 type WalkInfo struct {
-  Path []AccuratePosition
-  CurrentPos AccuratePosition
+  Path []Vec2D
+  CurrentPos Vec2D
   CurrentTarIndex int
 }
 
-func distance(pt1 AccuratePosition, pt2 AccuratePosition) float64{
+func Distance(pt1 Vec2D, pt2 Vec2D) float64{
   dx := pt1.X - pt2.X;
   dy := pt1.Y - pt2.Y;
   return math.Sqrt(dx * dx + dy * dy);
@@ -59,14 +61,14 @@ func GotToGoal(step float64, walkInfo *WalkInfo) bool{
 
     //fmt.Println(stepX, stepY);
 
-    nextPos := AccuratePosition{
+    nextPos := Vec2D{
       X: curPos.X + stepX,
       Y: curPos.Y + stepY,
     }
 
     //fmt.Println(nextPos);
 
-    d := distance(nextPos, tarPos);
+    d := Distance(nextPos, tarPos);
     //fmt.Println(d);
 
     if( d < eps ){
@@ -82,11 +84,11 @@ func GotToGoal(step float64, walkInfo *WalkInfo) bool{
 }
 
 func AstarPathToWalkInfo(originPath []astar.Point) WalkInfo{
-  var path []AccuratePosition;
+  var path []Vec2D;
   for _, pt := range originPath{
     //pt.X = pt.X * 64;
     //pt.Y = pt.Y * 64;
-    path = append(path, AccuratePosition{
+    path = append(path, Vec2D{
       X: float64(pt.X),
       Y: float64(pt.Y),
     });
