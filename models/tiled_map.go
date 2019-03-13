@@ -115,7 +115,7 @@ type TmxMap struct {
 	Pumpkin                      []*Vec2D
 
   //kobako
-  PathFindingMap astar.Map
+  CollideMap astar.Map
   ContinuousPosMap [][]Vec2D
   StartPoint Point
   Path []astar.Point
@@ -591,7 +591,7 @@ func (m *TmxMap) decodeLayerGidHacked() error {
 	}
 
   //astar.PrintMap(pathFindingMap);
-  //m.PathFindingMap = pathFindingMap;
+  //m.CollideMap = pathFindingMap;
 	return nil
 }
 
@@ -600,41 +600,48 @@ func SignItemPosOnMap(tmxMapIns *TmxMap){
     //初始化奖励位置
   for _, hignTreasure := range tmxMapIns.HighTreasuresInfo{
     fmt.Println(hignTreasure.DiscretePos.Y, hignTreasure.DiscretePos.X);
-    tmxMapIns.PathFindingMap[hignTreasure.DiscretePos.Y][hignTreasure.DiscretePos.X] = 3;
+    tmxMapIns.CollideMap[hignTreasure.DiscretePos.Y][hignTreasure.DiscretePos.X] = 3;
   }
   //初始化起点位置
-  tmxMapIns.PathFindingMap[tmxMapIns.StartPoint.Y][tmxMapIns.StartPoint.X] = 2;
+  tmxMapIns.CollideMap[tmxMapIns.StartPoint.Y][tmxMapIns.StartPoint.X] = 2;
 }
 
 
 //通过离散的二维数组进行寻路, 返回一个Point数组
-func FindPath(tmxMapIns *TmxMap) []astar.Point{
-
-    //InitMapItems(tmxMapIns);
-
-    fmt.Println("The Start Point: ");
-    fmt.Println(tmxMapIns.StartPoint);
-
-    path := astar.AstarByMap(tmxMapIns.PathFindingMap);
+func FindPath(mapWithStartAndGoal astar.Map) []astar.Point{
+    path := astar.AstarByMap(mapWithStartAndGoal);
     fmt.Printf("Path: %v \n",path);
 
-    tmxMapIns.Path = path;
+    //tmxMapIns.Path = path;
     for _, pt := range path{
-      tmxMapIns.PathFindingMap[pt.Y][pt.X] = 9;
+      mapWithStartAndGoal[pt.Y][pt.X] = 9;
     }
-    astar.PrintMap(tmxMapIns.PathFindingMap);
+    astar.PrintMap(mapWithStartAndGoal);
+
+    return path;
+}
+
+//通过离散的二维数组进行寻路, 返回一个Point数组
+func FindPathByStartAndGoal(collideMap astar.Map, start astar.Point, goal astar.Point) []astar.Point{
+    path := astar.AstarByStartAndGoalPoint(collideMap, start, goal);
+    fmt.Printf("Path: %v \n",path);
+
+    //tmxMapIns.Path = path;
+    for _, pt := range path{
+      collideMap[pt.Y][pt.X] = 9;
+    }
+    astar.PrintMap(collideMap);
 
     return path;
 }
 
 //初始化Box2d Wolrd, 读取所有tmx里的barrier, 为其创建CollidableBody 
-func InitBarriers2(pTmxMapIns *TmxMap, pTsxIns *Tsx) []Barrier2{
+func CreateBarrierBodysInWorld(pTmxMapIns *TmxMap, pTsxIns *Tsx, world *box2d.B2World) []Barrier2{
 
   result := []Barrier2{};
 
-	gravity := box2d.MakeB2Vec2(0.0, 0.0);
-	world := box2d.MakeB2World(gravity);
-  pTmxMapIns.World = &world;
+	//world := box2d.MakeB2World(gravity);
+  pTmxMapIns.World = world;
 
 	for _, lay := range pTmxMapIns.Layers {
 		if lay.Name != "tile_1 human skeleton" && lay.Name != "tile_1 board" && lay.Name != "tile_1 stone" {
@@ -742,7 +749,7 @@ func InitBarriers2(pTmxMapIns *TmxMap, pTsxIns *Tsx) []Barrier2{
             Y: obj.Y,
           }
 
-          barrierCoord := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&initPos)
+          //barrierCoord := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&initPos)
 
 
           //Init Polygon body
@@ -759,40 +766,68 @@ func InitBarriers2(pTmxMapIns *TmxMap, pTsxIns *Tsx) []Barrier2{
   							//return err
   						}
   						if k%2 == 0 {
+  							//pointsArrayWrtInit[key].X = n + initPos.X
   							pointsArrayWrtInit[key].X = n + initPos.X
   						} else {
+  							//pointsArrayWrtInit[key].Y = n + initPos.Y
   							pointsArrayWrtInit[key].Y = n + initPos.Y
   						}
   					}
   				}
 
+          fmt.Printf("PointsArrayWrtInit: %v \n", pointsArrayWrtInit)
+
+    			var scale float64 = 1.0
+    			pointsArrayTransted := make([]*Vec2D, len(pointsArrayWrtInit))
+          {
+    				for key, value := range pointsArrayWrtInit {
+    					//pointsArrayTransted[key] = &Vec2D{X: value.X - scale*float64(pTsxIns.TileWidth), Y: scale*float64(pTsxIns.TileHeight) - value.Y}
+              
+              vec := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&Vec2D{
+                X: value.X * scale,
+                Y: value.Y * scale,
+              })
+    					pointsArrayTransted[key] = &vec
+
+              fmt.Printf("PointsArrayTransted: %v \n", vec)
+    				}
+  
+  
+  
+            /*
+            //根据scale来放大点
+    				pointsArrayTransted := make([]*Vec2D, len(pointsArrayWrtInit))
+    				var scale float64 = 0.5
+    				//var scale float64 = 1
+    				for key, value := range pointsArrayWrtInit {
+    					pointsArrayTransted[key] = &Vec2D{X: value.X - scale*float64(pTsxIns.TileWidth), Y: scale*float64(pTsxIns.TileHeight) - value.Y}
+    				}
+            */
+  
+            /*
+  
+            //scale := 0.5
+            scale := 1.0
+    				pointsArrayTransted := make([]*Vec2D, len(pointsArrayWrtInit))
+    				for key, value := range pointsArrayWrtInit {
+    					//pointsArrayTransted[key] = &Vec2D{X: value.X - scale*float64(pTsxIns.TileWidth), Y: scale*float64(pTsxIns.TileHeight) - value.Y}
+              
+              vec := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&Vec2D{
+                X: value.X * scale,
+                Y: value.Y * scale,
+              })
+    					pointsArrayTransted[key] = &vec
+    				}
+            */
+          }
+
           /*
-          //根据scale来放大点
-  				pointsArrayTransted := make([]*Vec2D, len(pointsArrayWrtInit))
-  				var scale float64 = 0.5
-  				//var scale float64 = 1
-  				for key, value := range pointsArrayWrtInit {
-  					pointsArrayTransted[key] = &Vec2D{X: value.X - scale*float64(pTsxIns.TileWidth), Y: scale*float64(pTsxIns.TileHeight) - value.Y}
-  				}
+          x, y := pTmxMapIns.GetCoordByGid(0)
+          fmt.Printf("+++++++++ (0,0) to continuous: (%f, %f) \n", x, y)
           */
 
-          fmt.Printf("PolyLine: %v \n", pointsArrayWrtInit)
-
-          //scale := 0.5
-          scale := 1.0
-  				pointsArrayTransted := make([]*Vec2D, len(pointsArrayWrtInit))
-  				for key, value := range pointsArrayWrtInit {
-  					//pointsArrayTransted[key] = &Vec2D{X: value.X - scale*float64(pTsxIns.TileWidth), Y: scale*float64(pTsxIns.TileHeight) - value.Y}
-            
-            vec := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&Vec2D{
-              X: value.X * scale,
-              Y: value.Y * scale,
-            })
-  					pointsArrayTransted[key] = &vec
-  				}
 
 
-          //fmt.Printf("PolyLine: %v \n", pointsArrayWrtInit)
 
           {
             //CreateBody
@@ -801,7 +836,8 @@ func InitBarriers2(pTmxMapIns *TmxMap, pTsxIns *Tsx) []Barrier2{
       			var bdDef box2d.B2BodyDef
       			bdDef = box2d.MakeB2BodyDef()
       			bdDef.Type = box2d.B2BodyType.B2_staticBody
-      			bdDef.Position.Set(barrierCoord.X, barrierCoord.Y)
+      			//bdDef.Position.Set(barrierCoord.X, barrierCoord.Y)
+      			bdDef.Position.Set(0, 0)
       
       			b2BarrierBody := world.CreateBody(&bdDef);
       
@@ -825,6 +861,8 @@ func InitBarriers2(pTmxMapIns *TmxMap, pTsxIns *Tsx) []Barrier2{
       			b2BarrierBody.CreateFixtureFromDef(&fd)
   
           }
+
+          fmt.Printf("11111111111 Body count: %d \n", world.GetBodyCount())
  
 
 
@@ -901,7 +939,7 @@ func MockPlayerBody(world *box2d.B2World) *box2d.B2Body{
 	b2PlayerBody := world.CreateBody(&bdDef)
 
 	b2CircleShape := box2d.MakeB2CircleShape()
-	b2CircleShape.M_radius = 32 // Matching that of client-side setting.
+	b2CircleShape.M_radius = 16 // Matching that of client-side setting.
 
 	fd := box2d.MakeB2FixtureDef()
 	fd.Shape = &b2CircleShape
@@ -919,6 +957,9 @@ func MockPlayerBody(world *box2d.B2World) *box2d.B2Body{
 
 //根据world里的collidableBody信息初始化一个离散的二维数组, 0为可通行区域, 1为障碍物
 func CollideMap(world *box2d.B2World,  pTmx *TmxMap) astar.Map{
+
+  //fmt.Printf("222222222 Body count: %d \n", world.GetBodyCount())
+
   width := pTmx.Width;
   height := pTmx.Height;
 

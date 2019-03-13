@@ -1,8 +1,9 @@
 package main
 
 import(
-  "fmt"
+  //"fmt"
 	"AI/models"
+	"github.com/ByteArena/box2d"
 	//"AI/astar"
 	//"path/filepath"
 	//"os"
@@ -11,31 +12,15 @@ import(
 )
 
 func main(){
-  //tmx, tsx := models.InitMapStaticResource("./map/map/treasurehunter.tmx");
   tmx, tsx := models.InitMapStaticResource("./map/map/pacman/map.tmx");
+	gravity := box2d.MakeB2Vec2(0.0, 0.0);
+  world := box2d.MakeB2World(gravity);
 
-  barriers := models.InitBarriers2(&tmx, &tsx);
-  fmt.Println("There are %d barriers", len(barriers))
+  models.CreateBarrierBodysInWorld(&tmx, &tsx, &world);
 
-  tmx.PathFindingMap = models.CollideMap(tmx.World, &tmx);
+
+  tmx.CollideMap = models.CollideMap(tmx.World, &tmx);
   models.SignItemPosOnMap(&tmx);
 
   tmx.Path = models.FindPath(&tmx);
-
-
-
-  //walkInfo := models.AstarPathToWalkInfo(tmxMapIns.Path);
-  //step := 300.0;
-
-  /*
-  for {
-    end := models.GotToGoal(step, &walkInfo);
-    if end{
-      break;
-    }else{
-     time.Sleep(1 * time.Second);
-    }
-  }
-  */
-
 }

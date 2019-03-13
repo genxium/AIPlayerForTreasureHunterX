@@ -111,10 +111,7 @@ func isBarrier(m Map, pt Point) bool{
   return pt.X < 0 || pt.Y < 0  || len(m) <= pt.Y || len(m[pt.Y]) <= pt.X || m[pt.Y][pt.X] == BARRIER;
 }
 
-func AstarByMap(m Map) []Point{
-  start,_ := findPoint(m, START);
-  goal, _ := findPoint(m, GOAL);
-
+func AstarByStartAndGoalPoint(m Map, start Point, goal Point) []Point{
   fmt.Printf("Astar start: start at: %v, goal at: %v", start, goal);
 
   openSet := mapset.NewSet(start);
@@ -179,7 +176,13 @@ func AstarByMap(m Map) []Point{
   for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
     path[i], path[j] = path[j], path[i]
   }
-  return path;
+  return path; 
+}
+
+func AstarByMap(m Map) []Point{
+  start,_ := findPoint(m, START);
+  goal, _ := findPoint(m, GOAL);
+  return AstarByStartAndGoalPoint(m, start, goal);
 }
 
 func PrintMap(m Map){

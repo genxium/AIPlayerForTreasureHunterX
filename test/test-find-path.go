@@ -3,8 +3,8 @@ package main
 import(
   "fmt"
 	"AI/models"
-	//"AI/astar"
 	"github.com/ByteArena/box2d"
+	"AI/astar"
 	//"path/filepath"
 	//"os"
 	//"time"
@@ -18,8 +18,22 @@ func main(){
 
   models.CreateBarrierBodysInWorld(&tmx, &tsx, &world);
 
-  theMap := models.CollideMap(tmx.World, &tmx)
-  fmt.Println(theMap)
+
+  tmx.CollideMap = models.CollideMap(tmx.World, &tmx);
+  //models.SignItemPosOnMap(&tmx);
+
+  //Test
+  start := astar.Point{
+    X: 44,
+    Y: 5,
+  }
+
+  goal := astar.Point{
+    X: 18,
+    Y: 41,
+  }
+  //Test
+
+  path := models.FindPathByStartAndGoal(tmx.CollideMap, start, goal);
+  fmt.Println(path)
 }
-
-

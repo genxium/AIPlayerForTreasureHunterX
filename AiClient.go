@@ -144,21 +144,26 @@ func main() {
 		}
 
     //初始化地图资源
-    tmx, tsx := models.InitMapStaticResource("./map/map/treasurehunter.tmx");
+    //tmx, tsx := models.InitMapStaticResource("./map/map/treasurehunter.tmx");
+    tmx, tsx := models.InitMapStaticResource("./map/map/pacman/map.tmx");
     client.TmxIns = tmx
-    barriers := models.InitBarriers2(&tmx, &tsx);
-    client.CollidableWorld = tmx.World;
-    fmt.Println("There are %d barriers", len(barriers))
+  
+  	gravity := box2d.MakeB2Vec2(0.0, 0.0);
+    world := box2d.MakeB2World(gravity);
 
-    tmx.PathFindingMap = models.CollideMap(tmx.World, &tmx);
+    client.CollidableWorld = &world;
+  
+    models.CreateBarrierBodysInWorld(&tmx, &tsx, &world);
+
+    tmx.CollideMap = models.CollideMap(tmx.World, &tmx);
 
     models.SignItemPosOnMap(&tmx)
 
     //kobako 用于测试守护塔, 如果寻路不正确先注释这个
-    //tmx.PathFindingMap[14][18] = 3;
+    //tmx.CollideMap[14][18] = 3;
     //kobako for test
 
-    tmx.Path = models.FindPath(&tmx);
+    tmx.Path = models.FindPath(tmx.CollideMap);
 
     fmt.Printf("TMX path: %v", tmx.Path)
 
@@ -172,12 +177,22 @@ func main() {
         Y: y,
       })
     }
-    fmt.Println("The coord path: %v", path);
-    client.WalkInfo = models.WalkInfo{
-      Path: path,
-      CurrentPos: path[0],
-      CurrentTarIndex: 1,
+    fmt.Println("The coord path: ", path);
+
+    if(len(path) < 1){
+      fmt.Println("ERRRRRRRRRRRRROR, Find path failed")
+      client.WalkInfo = models.WalkInfo{
+        Path: path,
+        CurrentTarIndex: 0,
+      }
+    }else{
+      client.WalkInfo = models.WalkInfo{
+        Path: path,
+        CurrentPos: path[0],
+        CurrentTarIndex: 1,
+      }
     }
+
 
 		for {
 			var resp *wsResp
@@ -501,7 +516,7 @@ func (client *Client) initMapStaticResource() models.TmxMap{
 	ErrFatal(err)
 	models.DeserializeToTsxIns(byteArr, pTsxIns)
 
-  client.AstarMap = pTmxMapIns.PathFindingMap;
+  client.AstarMap = pTmxMapIns.CollideMap;
 
 	client.InitBarrier(pTmxMapIns, pTsxIns)
 
