@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.2" tiledversion="1.2.1" orientation="isometric" renderorder="right-down" width="50" height="50" tilewidth="64" tileheight="64" infinite="0" nextlayerid="11" nextobjectid="145">
+<map version="1.2" tiledversion="1.2.1" orientation="isometric" renderorder="right-down" width="50" height="50" tilewidth="64" tileheight="64" infinite="0" nextlayerid="11" nextobjectid="141">
  <tileset firstgid="1" source="Tile_W64_H64_S01.tsx"/>
- <layer id="3" name="GroundFloor" width="50" height="50" locked="1">
+ <layer id="3" name="GroundFloor" width="50" height="50">
   <data encoding="base64" compression="zlib">
    eJztz0ENACAMALGR4F8zNspyjwronZm7xPlcD0sPSw9LD0sPSw9LD0sPSw9LD0sPSw9LD0sPSw9LD0sPSw9LD0sPSw9LD0sPy7bHBg/ldQwR
   </data>
  </layer>
- <objectgroup id="8" name="controlled_players_starting_pos_list" locked="1">
+ <objectgroup id="8" name="controlled_players_starting_pos_list">
   <object id="135" x="320" y="2884">
    <point/>
   </object>
@@ -14,12 +14,12 @@
    <point/>
   </object>
  </objectgroup>
- <layer id="2" name="firsrtfloor" width="50" height="50" locked="1">
+ <layer id="2" name="firsrtfloor" width="50" height="50">
   <data encoding="base64" compression="zlib">
    eJztWctuwzAMKzZsXbf9//cOOwQIDD1Imkov5aVA6lChHzJl324vsPg1cr0buRj8GLnuZPtI84cQd1JDN8b35bfiqlBpYPtkjdv1z9pe1YKMA9onuxoOfIHP0DhIzANvJPfavnqv4lLWAzouKDcyfm4NWewV3yJf9E0VF6Mhy/9sTu3wSbbP5mSEQ2/2zW4tLJQcNqEly+eMn6jiZ3NyQguyzrv962GI2z1nOKt1OzGHJ7Qg63xiDmdjOb32EX5Xjn2mlspvdu862q/o6pZoPiB+M3te5Uglj/yj27cisP1/fu6sVzJOREvXJvPJ9yCeAxlnNa6dBsVjKjUoEi/DhAaUW+FU4lScqB931dMqv8KZzaWqBt2J1/l1Z12FcE3UcY7cg3i9A0y9mO1PSt+tyOaSOxejOeXqucQA5UN8crcfOPojQraWd/anLsex5wMrsm+7ovZ0Y8fjuWJFUO4KHFrQ8wnGeyp9dqX3ZrznVVqcvpU5N1e5oj50+lbmjBKF674D5ZqEcla441vPcN9rOtZYNW7R9+7kqgo7Wtgzyt1c1Y1jxaf4VuYOEp2T6t1j9R+rgbnjQzjR++nqvyp2lVtVD+9674zd827Ww+/WL+pZZRb/DNTDs/fTU3DGfZYGJ9j76Rf8+AMaTQfF
   </data>
  </layer>
- <objectgroup id="4" name="barrier" locked="1">
+ <objectgroup id="4" name="barrier">
   <properties>
    <property name="type" value="barrier_and_shelter"/>
   </properties>
@@ -491,7 +491,7 @@
    <point/>
   </object>
  </objectgroup>
- <objectgroup id="7" name="guardTower" locked="1">
+ <objectgroup id="7" name="guardTower">
   <object id="131" x="460" y="452">
    <point/>
   </object>

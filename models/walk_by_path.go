@@ -17,6 +17,7 @@ type WalkInfo struct {
   Path []Vec2D
   CurrentPos Vec2D
   CurrentTarIndex int
+  TargetTreasureId int
 }
 
 func Distance(pt1 Vec2D, pt2 Vec2D) float64{

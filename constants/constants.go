@@ -15,7 +15,7 @@ func Init(){
     PLAYER_ID = 93
   }else{
     DOMAIN = "localhost:9992"
-    INT_AUTH_TOKEN = "b4e38bb7886a65b194349a41e69be1d7"
+    INT_AUTH_TOKEN = "64a343adc704f73a14f7f291dc8c30fd"
     PLAYER_ID = 8
   }
 }

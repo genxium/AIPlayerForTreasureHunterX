@@ -90,10 +90,12 @@ type Client struct {
   Radian                float64
   Dir                   Direction
 
-  TmxIns                models.TmxMap
+  TmxIns                *models.TmxMap
   WalkInfo              models.WalkInfo
   RemovedTreasuresNum   int
 	Treasures             map[int32]*models.Treasure //接受到第一帧的时候初始化
+  LastFrameTreasureNum  int //上一帧时宝物的数量(因为现在每当一个宝物被吃掉时, 后端downFrame.Treasures会带上它的信息,保存该参数用于判断有没有宝物被吃掉)
+  TargetTreasureId      int32
 }
 
 
@@ -145,53 +147,18 @@ func main() {
 
     //初始化地图资源
     //tmx, tsx := models.InitMapStaticResource("./map/map/treasurehunter.tmx");
-    tmx, tsx := models.InitMapStaticResource("./map/map/pacman/map.tmx");
-    client.TmxIns = tmx
+    tmx, _ := models.InitMapStaticResource("./map/map/pacman/map.tmx");
+    client.TmxIns = &tmx
   
   	gravity := box2d.MakeB2Vec2(0.0, 0.0);
     world := box2d.MakeB2World(gravity);
 
     client.CollidableWorld = &world;
   
-    models.CreateBarrierBodysInWorld(&tmx, &tsx, &world);
+    models.CreateBarrierBodysInWorld(&tmx, &world);
 
     tmx.CollideMap = models.CollideMap(tmx.World, &tmx);
 
-    models.SignItemPosOnMap(&tmx)
-
-    //kobako 用于测试守护塔, 如果寻路不正确先注释这个
-    //tmx.CollideMap[14][18] = 3;
-    //kobako for test
-
-    tmx.Path = models.FindPath(tmx.CollideMap);
-
-    fmt.Printf("TMX path: %v", tmx.Path)
-
-    //将离散的路径转为连续坐标, 初始化walkInfo, 每次controller的时候调用
-    var path []models.Vec2D;
-    for _, pt := range tmx.Path{
-      gid := pt.Y * tmx.Width + pt.X;
-      x, y := tmx.GetCoordByGid(gid);
-      path = append(path, models.Vec2D{
-        X: x,
-        Y: y,
-      })
-    }
-    fmt.Println("The coord path: ", path);
-
-    if(len(path) < 1){
-      fmt.Println("ERRRRRRRRRRRRROR, Find path failed")
-      client.WalkInfo = models.WalkInfo{
-        Path: path,
-        CurrentTarIndex: 0,
-      }
-    }else{
-      client.WalkInfo = models.WalkInfo{
-        Path: path,
-        CurrentPos: path[0],
-        CurrentTarIndex: 1,
-      }
-    }
 
 
 		for {
@@ -211,8 +178,8 @@ func main() {
 					log.Println("marshal respPb:", err)
 				}
 				client.decodeProtoBuf(respPb.Data)
-        client.checkReFindPath()//kobako
 				client.controller()
+        client.checkReFindPath()//kobako
 				client.upsyncFrameData()
 			} else {
 				//handleHbRequirements(resp)
@@ -242,12 +209,87 @@ func main() {
 	}
 }
 
+func reFindPath(tmx *models.TmxMap, client *Client){
+  var startPoint astar.Point
+  {
+    playerVec := models.Vec2D{
+      X: client.Player.X,
+      Y: client.Player.Y,
+    }
+    temp := tmx.CoordToPoint(playerVec)
+    startPoint = astar.Point{
+      temp.X,
+      temp.Y,
+    }
+  }
+
+  var endPoint astar.Point
+  {
+    var min float64 = 999999
+    playerVec := models.Vec2D{
+      X: client.Player.X,
+      Y: client.Player.Y,
+    }
+    for id,v := range client.Treasures{
+      treasureVec := models.Vec2D{
+        X: v.X,
+        Y: v.Y,
+      }
+      dist := models.Distance(treasureVec, playerVec)
+      if dist < min{
+        min = dist
+        temp := tmx.CoordToPoint(treasureVec)
+        endPoint = astar.Point{
+          X: temp.X,
+          Y: temp.Y,
+        }
+        client.TargetTreasureId = id
+      }
+    }
+  }
+
+  fmt.Printf("NEW END POINT %v , NEW TID %d \n", endPoint, client.TargetTreasureId)
+
+   //第一次寻路
+  tmx.Path = models.FindPathByStartAndGoal(tmx.CollideMap, startPoint, endPoint);
+
+  fmt.Printf("TMX path: %v", tmx.Path)
+
+  //将离散的路径转为连续坐标, 初始化walkInfo, 每次controller的时候调用
+  var path []models.Vec2D;
+  for _, pt := range tmx.Path{
+    gid := pt.Y * tmx.Width + pt.X;
+    x, y := tmx.GetCoordByGid(gid);
+    path = append(path, models.Vec2D{
+      X: x,
+      Y: y,
+    })
+  }
+  fmt.Println("The coord path: ", path);
+
+  if(len(path) < 1){
+    fmt.Println("ERRRRRRRRRRRRROR, Find path failed")
+    client.WalkInfo = models.WalkInfo{
+      Path: path,
+      CurrentTarIndex: 0,
+    }
+  }else{
+    client.WalkInfo = models.WalkInfo{
+      Path: path,
+      CurrentPos: path[0],
+      CurrentTarIndex: 1,
+    }
+  }
+}
+
 
 func (client *Client) initItemAndPlayers(){
   //TODO: 根据第一帧的数据来设置好玩家的位置, 以及宝物的位置,以服务器为准
   initFullFrame := client.LastRoomDownsyncFrame
   //Init treasures
   client.Treasures =  initFullFrame.Treasures
+  client.LastFrameTreasureNum = 0
+
 
   //Sign on map
   tmx := client.TmxIns
@@ -270,12 +312,13 @@ func (client *Client) initItemAndPlayers(){
     tmx.ContinuousPosMap = continuousPosMap
   }
 
+
   //fmt.Printf("+++++++++++++++++++ %v", tmx)
   //fmt.Println(tmx.ContinuousPosMap)
 
+  var treasureDiscreteMap map[int32]models.Point
   {
-    var treasureMap map[int32]models.Point
-    treasureMap = make(map[int32]models.Point)
+    treasureDiscreteMap = make(map[int32]models.Point)
     //TODO: 对每一个宝物, 遍历地图找到距离最近的离散点, 标记为宝物
     for _, treasure := range client.Treasures{
       coord := models.Vec2D{
@@ -283,19 +326,77 @@ func (client *Client) initItemAndPlayers(){
         Y: treasure.Y,
       }
       discretePoint := tmx.CoordToPoint(coord)
-      treasureMap[treasure.Id] = discretePoint
+      treasureDiscreteMap[treasure.Id] = discretePoint
 
-      fmt.Printf("Treasure: %v \n", treasureMap[treasure.Id])
+      //fmt.Printf("Treasure: %v \n", treasureDiscreteMap[treasure.Id])
     }
   }
 
-  client.TmxIns = tmx
+  fmt.Printf("INIT Treasure: %v \n", client.Treasures)
+
+  //mark
+  var playerPoint astar.Point
+  {
+    temp := tmx.CoordToPoint(models.Vec2D{
+      X: client.Player.X,
+      Y: client.Player.Y,
+    })
+    playerPoint = astar.Point{
+      X: temp.X,
+      Y: temp.Y,
+    }
+  }
+
+
+
+  fmt.Printf("++++++ player point: %v \n", playerPoint)
+
+  //找出最近的一个宝物, 标记为client.TargetTreasureId
+  minDistance := 99999.0
+  for k, v := range treasureDiscreteMap{
+    vPoint := astar.Point{
+      X: v.X,
+      Y: v.Y,
+    }
+    dist := astar.DistBetween(vPoint, playerPoint)
+    if(dist < minDistance){
+      minDistance = dist
+      client.TargetTreasureId = k
+    }
+  }
+
+  fmt.Printf("++++++ minDistance %f, %v \n",minDistance  ,playerPoint)
+
+
+
+  reFindPath(tmx, client);
+
+  //初始化client.WalkInfo
+
 }
 
 func (client *Client) checkReFindPath(){
-  //lastFrame := client.LastRoomDownsyncFrame
-  //if(lastFrame.)
-  //TODO: 
+  if client.LastRoomDownsyncFrame.RefFrameId!=0 && len(client.LastRoomDownsyncFrame.Treasures) != client.LastFrameTreasureNum{
+    fmt.Printf("last number %d, now number %d \n",client.LastFrameTreasureNum,  len(client.LastRoomDownsyncFrame.Treasures))
+    client.LastFrameTreasureNum = len(client.LastRoomDownsyncFrame.Treasures)
+
+
+    var needReFindPath bool
+    for id, _ := range client.LastRoomDownsyncFrame.Treasures{
+      delete(client.Treasures, id)
+      //fmt.Printf("DELETE Treasure: %d \n ", id)
+      if id == client.TargetTreasureId{
+        fmt.Printf("!!!!!!!!!!!!!!!! Refind path, id: %d, treasure length: %d, client.TargetTreasureId: %d \n", id, len(client.LastRoomDownsyncFrame.Treasures), client.TargetTreasureId)
+        needReFindPath = true
+      }
+    }
+    if needReFindPath {
+      reFindPath(client.TmxIns, client)
+    }
+    //fmt.Println("++++++++++ pick up treasure")
+  }else{
+    //Do nothing
+  }
 }
 
 func (client *Client) controller() {
@@ -310,19 +411,11 @@ func (client *Client) controller() {
     client.initItemAndPlayers()
     //fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", client.LastRoomDownsyncFrame.Id, len(client.LastRoomDownsyncFrame.Treasures), client.LastRoomDownsyncFrame.RefFrameId)
 	} else {
-		//models.PrettyPrintBody(client.PlayerCollidableBody)
-		//client.Player.Y = client.Player.Y - 5
-    //kobako
-    //log.Println(client.Player.X, client.Player.Y)
-    //log.Println(client.PlayerCollidableBody)
-
-    //找到一个合适的方向
-
     step := 16.0;
 
     pathFindingMove(client, step);
-
     //foolMove(client, step);
+
 		time.Sleep(time.Duration(int64(40)))
 	}
 

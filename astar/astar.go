@@ -67,7 +67,7 @@ func minimum(openSet mapset.Set, fScore map[string]float64) (string, Point){
 }
 
 func heuristicCostEstimate(pt1 Point, pt2 Point) float64{
-  return distBetween(pt1, pt2);
+  return DistBetween(pt1, pt2);
 }
 
 func (pt Point) nabors() []Point{
@@ -88,7 +88,7 @@ func (pt1 Point) equal(pt2 Point) bool{
   return pt1.X == pt2.X && pt1.Y == pt2.Y;
 }
 
-func distBetween(pt1 Point, pt2 Point) float64{
+func DistBetween(pt1 Point, pt2 Point) float64{
   return math.Sqrt(math.Pow(float64(pt1.X - pt2.X), 2.0) + math.Pow(float64(pt1.Y - pt2.Y), 2.0));
 }
 
@@ -126,6 +126,7 @@ func AstarByStartAndGoalPoint(m Map, start Point, goal Point) []Point{
   for openSet.Cardinality() > 0{
     count = count + 1;
     if count > 3000{
+      fmt.Println("TOOOOOOOOOO many try times Astar failed")
       err = errors.New("Had tried too many times, there may be some logic error in your code!");
       break;
     }
@@ -148,7 +149,7 @@ func AstarByStartAndGoalPoint(m Map, start Point, goal Point) []Point{
       }else{
         naborKey := hash(nabor);
         if !closeSet.Contains(nabor) {
-          tentativeGScore := gScore[currentKey] + distBetween(nabor, current);
+          tentativeGScore := gScore[currentKey] + DistBetween(nabor, current);
           if !openSet.Contains(nabor){
             openSet.Add(nabor);
             gScore[naborKey] = tentativeGScore;

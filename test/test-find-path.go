@@ -12,11 +12,11 @@ import(
 )
 
 func main(){
-  tmx, tsx := models.InitMapStaticResource("./map/map/pacman/map.tmx");
+  tmx, _ := models.InitMapStaticResource("./map/map/pacman/map.tmx");
 	gravity := box2d.MakeB2Vec2(0.0, 0.0);
   world := box2d.MakeB2World(gravity);
 
-  models.CreateBarrierBodysInWorld(&tmx, &tsx, &world);
+  models.CreateBarrierBodysInWorld(&tmx, &world);
 
 
   tmx.CollideMap = models.CollideMap(tmx.World, &tmx);
