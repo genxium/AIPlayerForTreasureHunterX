@@ -486,6 +486,7 @@ func foolMove(client *Client, step float64){
 }
 
 func pathFindingMove(client *Client, step float64){
+  //通过服务器位置进行修正
   client.WalkInfo.CurrentPos.X = client.Player.X;
   client.WalkInfo.CurrentPos.Y = client.Player.Y;
 
