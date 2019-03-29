@@ -87,16 +87,21 @@ type Client struct {
 	Barrier               map[int32]*models.Barrier
 	PlayerCollidableBody  *box2d.B2Body `json:"-"`
   AstarMap              astar.Map
+
   Radian                float64
   Dir                   Direction
 
   TmxIns                *models.TmxMap
   WalkInfo              models.WalkInfo
   RemovedTreasuresNum   int
-	Treasures             map[int32]*models.Treasure //接受到第一帧的时候初始化
+	Treasures             map[int32]*models.Treasure //接收到第一帧的时候初始化全部宝物
   LastFrameTreasureNum  int //上一帧时宝物的数量(因为现在每当一个宝物被吃掉时, 后端downFrame.Treasures会带上它的信息,保存该参数用于判断有没有宝物被吃掉)
-  TargetTreasureId      int32
+  TargetTreasureId      int32 //仅当目标宝物被吃掉时重新寻路
+
+  //寻路抽象
+  pathFinding           *models.PathFinding
 }
+
 
 
 func main() {
@@ -143,6 +148,8 @@ func main() {
       //AstarMap:              astar.Map{},
       Radian:                math.Pi / 2,
       Dir:                   Direction{Dx: 0, Dy: 1},
+
+      pathFinding:           &models.PathFinding{CollideMap: nil},
 		}
 
     //初始化地图资源
@@ -157,7 +164,8 @@ func main() {
   
     models.CreateBarrierBodysInWorld(&tmx, &world);
 
-    tmx.CollideMap = models.CollideMap(tmx.World, &tmx);
+    tmx.CollideMap = models.InitCollideMap(tmx.World, &tmx);
+    client.pathFinding.CollideMap = tmx.CollideMap;
 
 
 
@@ -184,7 +192,7 @@ func main() {
 			} else {
 				//handleHbRequirements(resp)
 			}
-			time.Sleep(time.Duration(int64(20)))
+			//time.Sleep(time.Duration(int64(20)))
 		}
 	}()
 
@@ -284,8 +292,11 @@ func reFindPath(tmx *models.TmxMap, client *Client){
 
 
 func (client *Client) initItemAndPlayers(){
+
   //TODO: 根据第一帧的数据来设置好玩家的位置, 以及宝物的位置,以服务器为准
   initFullFrame := client.LastRoomDownsyncFrame
+  //fmt.Printf("InitFullFrame: Id: %d, RefFrameId: %d, Treasures: %v", initFullFrame.Id, initFullFrame.RefFrameId, initFullFrame.Treasures)
+
   //Init treasures
   client.Treasures =  initFullFrame.Treasures
   client.LastFrameTreasureNum = 0
@@ -403,20 +414,20 @@ func (client *Client) controller() {
 	if client.Player.Speed == 0 {
 		return
 	}
-	if client.LastRoomDownsyncFrame.Id == 1 || client.LastRoomDownsyncFrame.Id == 0 {
+	if client.LastRoomDownsyncFrame.Id == 1 || client.LastRoomDownsyncFrame.Id == 2 {
 		client.InitColliders()
 		client.BattleState = IN_BATTLE
 		log.Println("Game Start")
     //mark
     client.initItemAndPlayers()
-    //fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", client.LastRoomDownsyncFrame.Id, len(client.LastRoomDownsyncFrame.Treasures), client.LastRoomDownsyncFrame.RefFrameId)
+    fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", client.LastRoomDownsyncFrame.Id, len(client.LastRoomDownsyncFrame.Treasures), client.LastRoomDownsyncFrame.RefFrameId)
 	} else {
     step := 16.0;
 
     pathFindingMove(client, step);
     //foolMove(client, step);
 
-		time.Sleep(time.Duration(int64(40)))
+		//time.Sleep(time.Duration(int64(40)))
 	}
 
 }
@@ -562,14 +573,13 @@ func (client *Client) decodeProtoBuf(message []byte) {
 
 
   //fmt.Printf("Treasures length: %d \n", len(room_downsync_frame.Treasures))
+  //fmt.Printf("room_downsync_frame: Id: %d, RefFrameId: %d, Treasures: %v \n", room_downsync_frame.Id, room_downsync_frame.RefFrameId, room_downsync_frame.Treasures)
   /*
   for k, v := range room_downsync_frame.Treasures{
     //fmt.Printf("ID: %d, X: %d, Y: %d || ", v.Id, v.Removed, v.X, v.Y)
     fmt.Printf("k: %d, v: %v || ", k, v)
   }
-  fmt.Println()
   */
-  //fmt.Printf("Bullet length: %d \n", len(room_downsync_frame.Bullets))
 
 }
 

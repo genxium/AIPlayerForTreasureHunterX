@@ -842,7 +842,7 @@ func MockPlayerBody(world *box2d.B2World) *box2d.B2Body{
 }
 
 //根据world里的collidableBody信息初始化一个离散的二维数组, 0为可通行区域, 1为障碍物
-func CollideMap(world *box2d.B2World,  pTmx *TmxMap) astar.Map{
+func InitCollideMap(world *box2d.B2World,  pTmx *TmxMap) astar.Map{
 
   //fmt.Printf("222222222 Body count: %d \n", world.GetBodyCount())
 
