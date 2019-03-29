@@ -425,6 +425,9 @@ func (client *Client) controller() {
     step := 16.0;
 
     pathFindingMove(client, step);
+
+    //client :q
+
     //foolMove(client, step);
 
 		//time.Sleep(time.Duration(int64(40)))
