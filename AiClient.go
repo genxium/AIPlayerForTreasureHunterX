@@ -4,6 +4,7 @@ import (
 	"AI/models"
 	"AI/astar"
 	"AI/constants"
+	"AI/login"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -106,11 +107,7 @@ type Client struct {
 
 func main() {
 
-  /** init constants */
-  constants.Init();
-  /** init constants */
-
-  addr := flag.String("addr", constants.DOMAIN, "http service address")
+  addr := flag.String("addr", constants.DOMAIN + ":" + constants.PORT, "http service address")
 
 	flag.Parse()
 	log.SetFlags(0)
@@ -120,12 +117,17 @@ func main() {
 
 	u := url.URL{Scheme: "ws", Host: *addr, Path: "/tsrht"}
 	q := u.Query()
+
+  intAuthToken, playerId := login.GetIntAuthTokenByBotName("bot1")
   //local
-	q.Set("intAuthToken", constants.INT_AUTH_TOKEN)
+	q.Set("intAuthToken", intAuthToken)
+	q.Set("expectedRoomId", "2")
   //server
 	//q.Set("intAuthToken", "1da05d70c52a57d1379737bd537cd415")
 	u.RawQuery = q.Encode()
 	//ref to the NewClient and DefaultDialer.Dial https://github.com/gorilla/websocket/issues/54
+  fmt.Println("kobako: u.String(): ")
+  fmt.Println(u.String())
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
 		log.Fatal("dial:", err)
@@ -143,7 +145,7 @@ func main() {
       //server
 			//Player:                &models.Player{Id: 93},
       //local
-			Player:                &models.Player{Id: constants.PLAYER_ID},
+			Player:                &models.Player{Id: int64(playerId)},
 			Barrier:               make(map[int32]*models.Barrier),
       //AstarMap:              astar.Map{},
       Radian:                math.Pi / 2,
@@ -414,11 +416,11 @@ func (client *Client) controller() {
 	if client.Player.Speed == 0 {
 		return
 	}
-	if client.LastRoomDownsyncFrame.Id == 1 || client.LastRoomDownsyncFrame.Id == 2 {
+	if client.LastRoomDownsyncFrame.Id == 1 || client.LastRoomDownsyncFrame.Id == 2 { // 初始帧
 		client.InitColliders()
 		client.BattleState = IN_BATTLE
 		log.Println("Game Start")
-    //mark
+    //初始化需要寻找的宝物和玩家位置
     client.initItemAndPlayers()
     fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", client.LastRoomDownsyncFrame.Id, len(client.LastRoomDownsyncFrame.Treasures), client.LastRoomDownsyncFrame.RefFrameId)
 	} else {
