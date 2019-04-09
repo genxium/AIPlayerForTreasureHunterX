@@ -642,6 +642,10 @@ func FindPath(mapWithStartAndGoal astar.Map) []astar.Point{
 //通过离散的二维数组进行寻路, 返回一个Point数组
 func FindPathByStartAndGoal(collideMap astar.Map, start astar.Point, goal astar.Point) []astar.Point{
     path := astar.AstarByStartAndGoalPoint(collideMap, start, goal);
+
+    /*
+     * 打印地图
+     * 
     fmt.Printf("Path: %v \n",path);
 
     //tmxMapIns.Path = path;
@@ -660,6 +664,7 @@ func FindPathByStartAndGoal(collideMap astar.Map, start astar.Point, goal astar.
         }
       }
     }
+    */
 
     return path;
 }

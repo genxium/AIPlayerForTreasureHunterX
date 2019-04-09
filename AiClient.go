@@ -6,7 +6,7 @@ import (
 	"AI/constants"
 	"AI/login"
 	"encoding/json"
-	"flag"
+	//"flag"
 	"fmt"
 	"github.com/ByteArena/box2d"
 	"github.com/golang/protobuf/proto"
@@ -20,6 +20,8 @@ import (
 	"path/filepath"
 	"time"
 	"math"
+  "strconv"
+  "sync"
 )
 
 const (
@@ -99,35 +101,34 @@ type Client struct {
   LastFrameTreasureNum  int //上一帧时宝物的数量(因为现在每当一个宝物被吃掉时, 后端downFrame.Treasures会带上它的信息,保存该参数用于判断有没有宝物被吃掉)
   TargetTreasureId      int32 //仅当目标宝物被吃掉时重新寻路
 
-  //寻路抽象
-  pathFinding           *models.PathFinding
+  //寻路抽象(Incomplete) --kobako
+  //pathFinding           *models.PathFinding
 }
 
+func spawnBot(botName string, expectedRoomId int, wg *sync.WaitGroup){
+  defer func(wg *sync.WaitGroup){
+    fmt.Println("wg done!!!")
+    wg.Done()
+  }(wg)
 
-
-func main() {
-
-  addr := flag.String("addr", constants.DOMAIN + ":" + constants.PORT, "http service address")
-
-	flag.Parse()
 	log.SetFlags(0)
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	u := url.URL{Scheme: "ws", Host: *addr, Path: "/tsrht"}
+	u := url.URL{Scheme: "ws", Host: constants.DOMAIN + ":" + constants.PORT, Path: "/tsrht"}
 	q := u.Query()
 
-  intAuthToken, playerId := login.GetIntAuthTokenByBotName("bot1")
+  //TODO: Error handle
+  intAuthToken, playerId := login.GetIntAuthTokenByBotName(botName)
+
   //local
 	q.Set("intAuthToken", intAuthToken)
-	q.Set("expectedRoomId", "2")
-  //server
-	//q.Set("intAuthToken", "1da05d70c52a57d1379737bd537cd415")
+  if(expectedRoomId > 0){
+	  q.Set("expectedRoomId", strconv.Itoa(expectedRoomId))
+  }
 	u.RawQuery = q.Encode()
 	//ref to the NewClient and DefaultDialer.Dial https://github.com/gorilla/websocket/issues/54
-  fmt.Println("kobako: u.String(): ")
-  fmt.Println(u.String())
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
 		log.Fatal("dial:", err)
@@ -137,25 +138,28 @@ func main() {
 	done := make(chan struct{})
 
 	go func() {
-		defer close(done)
+
+    defer func(){
+      if r := recover(); r != nil{
+        fmt.Println("kobako: Panic hadled!!!!!!, 但是正常退出")
+      }else{
+        fmt.Println("kobako: 正常退出goroutine")
+      }
+      close(done)
+    }()
+
 		client := &Client{
 			LastRoomDownsyncFrame: nil,
 			BattleState:           -1,
 			c:                     c,
-      //server
-			//Player:                &models.Player{Id: 93},
-      //local
 			Player:                &models.Player{Id: int64(playerId)},
 			Barrier:               make(map[int32]*models.Barrier),
-      //AstarMap:              astar.Map{},
       Radian:                math.Pi / 2,
       Dir:                   Direction{Dx: 0, Dy: 1},
-
-      pathFinding:           &models.PathFinding{CollideMap: nil},
+      //pathFinding:           &models.PathFinding{CollideMap: nil},
 		}
 
     //初始化地图资源
-    //tmx, tsx := models.InitMapStaticResource("./map/map/treasurehunter.tmx");
     tmx, _ := models.InitMapStaticResource("./map/map/pacman/map.tmx");
     client.TmxIns = &tmx
   
@@ -167,7 +171,7 @@ func main() {
     models.CreateBarrierBodysInWorld(&tmx, &world);
 
     tmx.CollideMap = models.InitCollideMap(tmx.World, &tmx);
-    client.pathFinding.CollideMap = tmx.CollideMap;
+    //client.pathFinding.CollideMap = tmx.CollideMap;
 
 
 
@@ -201,10 +205,10 @@ func main() {
 	for {
 		select {
 		case <-done:
+      fmt.Println("All done. ")
 			return
 		case <-interrupt:
 			log.Println("interrupt")
-
 			err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 			if err != nil {
 				log.Println("write close:", err)
@@ -217,6 +221,23 @@ func main() {
 			return
 		}
 	}
+}
+
+
+
+func main() {
+  var wg *sync.WaitGroup
+  wg = new(sync.WaitGroup)
+
+  wg.Add(1)
+  go spawnBot("bot4", -1, wg)
+
+  wg.Add(1)
+  go spawnBot("bot3", -1, wg)
+
+  wg.Wait()
+
+  fmt.Println("kobako: All complete, Exit")
 }
 
 func reFindPath(tmx *models.TmxMap, client *Client){
@@ -295,7 +316,7 @@ func reFindPath(tmx *models.TmxMap, client *Client){
 
 func (client *Client) initItemAndPlayers(){
 
-  //TODO: 根据第一帧的数据来设置好玩家的位置, 以及宝物的位置,以服务器为准
+  //根据第一帧的数据来设置好玩家的位置, 以及宝物的位置,以服务器为准
   initFullFrame := client.LastRoomDownsyncFrame
   //fmt.Printf("InitFullFrame: Id: %d, RefFrameId: %d, Treasures: %v", initFullFrame.Id, initFullFrame.RefFrameId, initFullFrame.Treasures)
 
@@ -325,14 +346,10 @@ func (client *Client) initItemAndPlayers(){
     tmx.ContinuousPosMap = continuousPosMap
   }
 
-
-  //fmt.Printf("+++++++++++++++++++ %v", tmx)
-  //fmt.Println(tmx.ContinuousPosMap)
-
   var treasureDiscreteMap map[int32]models.Point
   {
     treasureDiscreteMap = make(map[int32]models.Point)
-    //TODO: 对每一个宝物, 遍历地图找到距离最近的离散点, 标记为宝物
+    //对每一个宝物, 遍历地图找到距离最近的离散点, 标记为宝物
     for _, treasure := range client.Treasures{
       coord := models.Vec2D{
         X: treasure.X,
