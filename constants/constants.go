@@ -6,6 +6,7 @@ import (
 
 const (
   PROTOCOL = "http"
+  //HOST = "tsrht.lokcol.com"
   HOST = "localhost"
   PORT = "9992"
   API = "/api"
@@ -14,6 +15,4 @@ const (
   SMS_CAPTCHA = "/SmsCaptcha"
   GET = "/get"
   LOGIN = "/login"
-  //DOMAIN = "tsrht.lokcol.com:9992"
-  DOMAIN = "localhost"
 )

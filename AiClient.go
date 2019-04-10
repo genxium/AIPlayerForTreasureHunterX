@@ -21,7 +21,8 @@ import (
 	"time"
 	"math"
   "strconv"
-  "sync"
+  //"sync"
+  "github.com/gin-gonic/gin"
 )
 
 const (
@@ -102,21 +103,18 @@ type Client struct {
   TargetTreasureId      int32 //仅当目标宝物被吃掉时重新寻路
 
   //寻路抽象(Incomplete) --kobako
-  //pathFinding           *models.PathFinding
+  pathFinding           *models.PathFinding
 }
 
-func spawnBot(botName string, expectedRoomId int, wg *sync.WaitGroup){
-  defer func(wg *sync.WaitGroup){
-    fmt.Println("wg done!!!")
-    wg.Done()
-  }(wg)
+func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager){
+  defer botManager.ReleaseBot(botName)
 
 	log.SetFlags(0)
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	u := url.URL{Scheme: "ws", Host: constants.DOMAIN + ":" + constants.PORT, Path: "/tsrht"}
+	u := url.URL{Scheme: "ws", Host: constants.HOST + ":" + constants.PORT, Path: "/tsrht"}
 	q := u.Query()
 
   //TODO: Error handle
@@ -156,7 +154,7 @@ func spawnBot(botName string, expectedRoomId int, wg *sync.WaitGroup){
 			Barrier:               make(map[int32]*models.Barrier),
       Radian:                math.Pi / 2,
       Dir:                   Direction{Dx: 0, Dy: 1},
-      //pathFinding:           &models.PathFinding{CollideMap: nil},
+      pathFinding:           new(models.PathFinding),
 		}
 
     //初始化地图资源
@@ -171,7 +169,7 @@ func spawnBot(botName string, expectedRoomId int, wg *sync.WaitGroup){
     models.CreateBarrierBodysInWorld(&tmx, &world);
 
     tmx.CollideMap = models.InitCollideMap(tmx.World, &tmx);
-    //client.pathFinding.CollideMap = tmx.CollideMap;
+    client.pathFinding.CollideMap = tmx.CollideMap;
 
 
 
@@ -208,7 +206,7 @@ func spawnBot(botName string, expectedRoomId int, wg *sync.WaitGroup){
       fmt.Println("All done. ")
 			return
 		case <-interrupt:
-			log.Println("interrupt")
+			log.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!interrupt")
 			err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 			if err != nil {
 				log.Println("write close:", err)
@@ -224,22 +222,53 @@ func spawnBot(botName string, expectedRoomId int, wg *sync.WaitGroup){
 }
 
 
-
 func main() {
-  var wg *sync.WaitGroup
-  wg = new(sync.WaitGroup)
 
-  wg.Add(1)
-  go spawnBot("bot4", -1, wg)
+  startServer(15351)
 
-  wg.Add(1)
-  go spawnBot("bot3", -1, wg)
-
-  wg.Wait()
-
-  fmt.Println("kobako: All complete, Exit")
 }
 
+func startServer(port int){
+  var botManager *models.BotManager
+  {
+    botManager = new(models.BotManager)
+    botManager.SetBots([]string{"bot1","bot2","bot3","bot4"})
+  }
+
+
+  r := gin.Default()
+  { //启动服务器
+  	r.GET("/spawnBot", func(c *gin.Context) {
+      expectedRoomId, err := strconv.Atoi(c.Query("expectedRoomId"))
+      if err != nil {
+        fmt.Println("请求中没有或者转换expectedRoomId出错")
+        c.JSON(200, gin.H{
+  			  "ret": 1001,
+          "err": "请求中没有或者转换expectedRoomId出错",
+  		  })
+      }else{
+        botName,err := botManager.GetLeisureBot()
+        if err != nil {
+          fmt.Println("获取空闲bot出错: " + err.Error())
+      		c.JSON(200, gin.H{
+            "ret": 1001,
+     			  "botName": "获取空闲bot出错: " + err.Error(),
+     		  })
+        }else{
+          go spawnBot(botName, expectedRoomId, botManager)
+          fmt.Printf("Get bot: %s, expectedRoomId: %d \n", botName, expectedRoomId)
+      		c.JSON(200, gin.H{
+            "ret": 1000,
+     			  "botName": botName,
+     		  })
+        }
+      }
+  	})
+  }
+  r.Run(":" + strconv.Itoa(port))
+}
+
+//通过当前玩家的坐标, 和treasureMap来计算start, end point, 用于寻路, 重新初始化walkInfo
 func reFindPath(tmx *models.TmxMap, client *Client){
   var startPoint astar.Point
   {
@@ -281,7 +310,6 @@ func reFindPath(tmx *models.TmxMap, client *Client){
 
   fmt.Printf("NEW END POINT %v , NEW TID %d \n", endPoint, client.TargetTreasureId)
 
-   //第一次寻路
   tmx.Path = models.FindPathByStartAndGoal(tmx.CollideMap, startPoint, endPoint);
 
   fmt.Printf("TMX path: %v", tmx.Path)
@@ -361,6 +389,7 @@ func (client *Client) initItemAndPlayers(){
       //fmt.Printf("Treasure: %v \n", treasureDiscreteMap[treasure.Id])
     }
   }
+  client.pathFinding.TreasureMap = treasureDiscreteMap
 
   fmt.Printf("INIT Treasure: %v \n", client.Treasures)
 
@@ -371,6 +400,8 @@ func (client *Client) initItemAndPlayers(){
       X: client.Player.X,
       Y: client.Player.Y,
     })
+    client.pathFinding.CurrentPoint = temp
+    //类型转换
     playerPoint = astar.Point{
       X: temp.X,
       Y: temp.Y,
@@ -434,10 +465,10 @@ func (client *Client) controller() {
 		return
 	}
 	if client.LastRoomDownsyncFrame.Id == 1 || client.LastRoomDownsyncFrame.Id == 2 { // 初始帧
-		client.InitColliders()
-		client.BattleState = IN_BATTLE
 		log.Println("Game Start")
+		client.BattleState = IN_BATTLE
     //初始化需要寻找的宝物和玩家位置
+		client.InitPlayerCollider()
     client.initItemAndPlayers()
     fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", client.LastRoomDownsyncFrame.Id, len(client.LastRoomDownsyncFrame.Treasures), client.LastRoomDownsyncFrame.RefFrameId)
 	} else {
@@ -656,8 +687,8 @@ func (client *Client) initMapStaticResource() models.TmxMap{
   return tmxMapIns;
 }
 
-func (client *Client) InitColliders() {
-	log.Println("InitColliders for client.Players:", zap.Any("roomId", client.Id))
+func (client *Client) InitPlayerCollider() {
+	log.Println("InitPlayerCollider for client.Players:", zap.Any("roomId", client.Id))
 	player := client.Player
 	var bdDef box2d.B2BodyDef
 	colliderOffset := box2d.MakeB2Vec2(0, 0) // Matching that of client-side setting.

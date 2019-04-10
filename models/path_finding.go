@@ -8,16 +8,18 @@ import(
 
 type PathFinding struct {
   CollideMap astar.Map
-  CurrentCoord Vec2D
+  //CurrentCoord Vec2D
   CurrentPoint Point
-  GoalPoint Point
-  GoalCoord Vec2D
-  CoordPath []Vec2D
-  PointPath []Point
-  StepDistance float64
-  CurrentPathIndex int
+  //GoalPoint Point
+  //GoalCoord Vec2D
+  //CoordPath []Vec2D
+  //PointPath []Point
+  //StepDistance float64
+  //CurrentPathIndex int
+  TreasureMap map[int32] Point //id -> point of position
 }
 
+/*
 func (p *PathFinding) Step(){
 
 }
@@ -48,3 +50,4 @@ func (p *PathFinding) NewGoal(goal Point){
   p.PointPath = path
   //TODO: Analyse CoordPath
 }
+*/
