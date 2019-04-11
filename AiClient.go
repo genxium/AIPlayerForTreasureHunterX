@@ -357,7 +357,7 @@ func reFindPath(tmx *models.TmxMap, client *Client) {
 	}
 }
 
-func (client *Client) initItemAndPlayers() {
+func (client *Client) initTreasureAndPlayers() {
 
 	//根据第一帧的数据来设置好玩家的位置, 以及宝物的位置,以服务器为准
 	initFullFrame := client.LastRoomDownsyncFrame
@@ -478,7 +478,7 @@ func (client *Client) controller() {
 		client.BattleState = IN_BATTLE
 		//初始化需要寻找的宝物和玩家位置
 		client.InitPlayerCollider()
-		client.initItemAndPlayers()
+		client.initTreasureAndPlayers()
 		fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", client.LastRoomDownsyncFrame.Id, len(client.LastRoomDownsyncFrame.Treasures), client.LastRoomDownsyncFrame.RefFrameId)
 	} else {
 		step := 16.0
@@ -617,14 +617,15 @@ func (client *Client) decodeProtoBuf(message []byte) {
 	room_downsync_frame := models.RoomDownsyncFrame{}
 	err := proto.Unmarshal(message, &room_downsync_frame)
 	if err != nil {
+    fmt.Println("解析room_downsync_frame出错了!");
 		log.Fatal(err)
-	}
+	}else{
+    //解析room_downsync_frame成功
+    //fmt.Println("解析room_downsync_frame成功");
+  }
 
-	/*
-	  fmt.Println("decodeProtoBuf(): ");
-	  fmt.Println(room_downsync_frame.Players);
-	  fmt.Println(client.Player.Id);
-	*/
+  //fmt.Println(room_downsync_frame.Players);
+  //fmt.Println(client.Player.Id);
 
 	//fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", room_downsync_frame.Id, len(room_downsync_frame.Treasures), room_downsync_frame.RefFrameId)
 
