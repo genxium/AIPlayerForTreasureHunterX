@@ -48,6 +48,7 @@ func GetIntAuthTokenByCaptcha(botName string, captcha string) (token string, pla
 	var respSmsLogin RespSmsLogin
 	{
     pathSmsLogin := C.SERVER.PROTOCOL + "://" + C.SERVER.HOST + C.SERVER.PORT + C.API + C.PLAYER + C.VERSION + C.SMS_CAPTCHA + C.LOGIN
+		fmt.Println(pathSmsLogin)
 		resp, err := http.PostForm(pathSmsLogin, url.Values{"smsLoginCaptcha": {captcha}, "phoneNum": {botName}, "phoneCountryCode": {"86"}})
 		if err != nil {
 			// handle error

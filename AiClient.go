@@ -122,6 +122,9 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 		q.Set("expectedRoomId", strconv.Itoa(expectedRoomId))
 	}
 	u.RawQuery = q.Encode()
+
+  fmt.Println("WS connect to " + u.String())
+
 	//ref to the NewClient and DefaultDialer.Dial https://github.com/gorilla/websocket/issues/54
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
