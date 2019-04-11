@@ -263,7 +263,7 @@ func (tmx *TmxMap) CoordToPoint(coord Vec2D) Point {
 	for i := 0; i < tmx.Height; i++ {
 		for j := 0; j < tmx.Width; j++ {
 			tilePos := tmx.ContinuousPosMap[i][j]
-			distance := Distance(coord, tilePos)
+			distance := Distance(&coord, &tilePos)
 			if distance < minDistance {
 				minDistance = distance
 				result.X = j

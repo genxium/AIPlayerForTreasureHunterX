@@ -70,11 +70,6 @@ type wsResp struct {
 	Data        json.RawMessage `json:"data,omitempty"`
 }
 
-type Direction struct {
-	Dx float64
-	Dy float64
-}
-
 type wsRespPb struct {
 	Ret         int32  `json:"ret,omitempty"`
 	EchoedMsgId int32  `json:"echoedMsgId,omitempty"`
@@ -94,7 +89,7 @@ type Client struct {
 	AstarMap              astar.Map
 
 	Radian float64
-	Dir    Direction
+	Dir    models.Direction
 
 	TmxIns               *models.TmxMap
 	WalkInfo             models.WalkInfo
@@ -151,10 +146,10 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 			LastRoomDownsyncFrame: nil,
 			BattleState:           -1,
 			c:                     c,
-			Player:                &models.Player{Id: int64(playerId)},
+			Player:                &models.Player{Id: int32(playerId)},
 			Barrier:               make(map[int32]*models.Barrier),
 			Radian:                math.Pi / 2,
-			Dir:                   Direction{Dx: 0, Dy: 1},
+			Dir:                   models.Direction{Dx: 0, Dy: 1},
 			pathFinding:           new(models.PathFinding),
 		}
 
@@ -185,7 +180,7 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 				respPb = new(wsRespPb)
 				err := c.ReadJSON(respPb)
 				if err != nil {
-					log.Println("marshal respPb:", err)
+					log.Println("Err unmarshalling respPb:", err)
 				}
 				client.decodeProtoBuf(respPb.Data)
 				client.controller()
@@ -311,7 +306,7 @@ func reFindPath(tmx *models.TmxMap, client *Client) {
 				X: v.X,
 				Y: v.Y,
 			}
-			dist := models.Distance(treasureVec, playerVec)
+			dist := models.Distance(&treasureVec, &playerVec)
 			if dist < min {
 				min = dist
 				temp := tmx.CoordToPoint(treasureVec)
@@ -543,7 +538,7 @@ func foolMove(client *Client, step float64) {
 					return 2, 1
 				}
 			}()
-			client.Dir = Direction{
+			client.Dir = models.Direction{
 				Dx: dx,
 				Dy: dy,
 			}
@@ -583,13 +578,12 @@ func (client *Client) upsyncFrameData() {
 	//fmt.Println(client.Player.X, client.Player.Y);
 	if client.BattleState == IN_BATTLE {
 		newFrame := &struct {
-			Id int64   `json:"id"`
+			Id int32   `json:"id"`
 			X  float64 `json:"x"`
 			Y  float64 `json:"y"`
-			//Dir           *models.Direction `json:"dir"`
-			Dir           Direction `json:"dir"`
+			Dir           models.Direction `json:"dir"`
 			AckingFrameId int32     `json:"AckingFrameId"`
-		}{client.Player.Id, client.Player.X, client.Player.Y, Direction{}, client.LastRoomDownsyncFrame.Id}
+		}{client.Player.Id, client.Player.X, client.Player.Y, models.Direction{}, client.LastRoomDownsyncFrame.Id}
 
 		//fmt.Println(newFrame.AckingFrameId)
 
@@ -614,6 +608,7 @@ func (client *Client) upsyncFrameData() {
 
 //kobako: 从下行帧解析宝物信息是否减少
 func (client *Client) decodeProtoBuf(message []byte) {
+  log.Println("About to decode message into models.RoomDownsyncFrame:", message)
 	room_downsync_frame := models.RoomDownsyncFrame{}
 	err := proto.Unmarshal(message, &room_downsync_frame)
 	if err != nil {

@@ -6,6 +6,12 @@ import (
 	"math"
 )
 
+// Use type `float64` for json unmarshalling of numbers.
+type Direction struct {
+	Dx float64 `protobuf:"fixed64,1,opt,name=dx,proto3" json:"dx,omitempty"`
+	Dy float64 `protobuf:"fixed64,2,opt,name=dy,proto3" json:"dy,omitempty"`
+}
+
 type Vec2D struct {
 	X float64 `protobuf:"fixed64,1,opt,name=x,proto3" json:"x,omitempty"`
 	Y float64 `protobuf:"fixed64,2,opt,name=y,proto3" json:"y,omitempty"`
@@ -16,12 +22,6 @@ func CreateVec2DFromB2Vec2(b2V2 box2d.B2Vec2) *Vec2D {
 		X: b2V2.X,
 		Y: b2V2.Y,
 	}
-}
-
-func Distance(pt1 Vec2D, pt2 Vec2D) float64 {
-	dx := pt1.X - pt2.X
-	dy := pt1.Y - pt2.Y
-	return math.Sqrt(dx*dx + dy*dy)
 }
 
 func (v2 *Vec2D) ToB2Vec2() box2d.B2Vec2 {
@@ -103,4 +103,10 @@ func PrettyPrintBody(body *box2d.B2Body) {
 	}
 	fmt.Printf("\t}\n")
 	fmt.Printf("}\n")
+}
+
+func Distance(pt1 *Vec2D, pt2 *Vec2D) float64 {
+	dx := pt1.X - pt2.X
+	dy := pt1.Y - pt2.Y
+	return math.Sqrt(dx*dx + dy*dy)
 }
