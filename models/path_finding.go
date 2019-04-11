@@ -1,22 +1,22 @@
 package models
 
-import(
+import (
 	"AI/astar"
 )
 
 //寻路的抽象
 
 type PathFinding struct {
-  CollideMap astar.Map
-  //CurrentCoord Vec2D
-  CurrentPoint Point
-  //GoalPoint Point
-  //GoalCoord Vec2D
-  //CoordPath []Vec2D
-  //PointPath []Point
-  //StepDistance float64
-  //CurrentPathIndex int
-  TreasureMap map[int32] Point //id -> point of position
+	CollideMap astar.Map
+	//CurrentCoord Vec2D
+	CurrentPoint Point
+	//GoalPoint Point
+	//GoalCoord Vec2D
+	//CoordPath []Vec2D
+	//PointPath []Point
+	//StepDistance float64
+	//CurrentPathIndex int
+	TreasureMap map[int32]Point //id -> point of position
 }
 
 /*

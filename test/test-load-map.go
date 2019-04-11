@@ -1,7 +1,7 @@
 package main
 
-import(
-  //"fmt"
+import (
+	//"fmt"
 	"AI/models"
 	"github.com/ByteArena/box2d"
 	//"AI/astar"
@@ -11,16 +11,15 @@ import(
 	//"io/ioutil"
 )
 
-func main(){
-  tmx, tsx := models.InitMapStaticResource("./map/map/pacman/map.tmx");
-	gravity := box2d.MakeB2Vec2(0.0, 0.0);
-  world := box2d.MakeB2World(gravity);
+func main() {
+	tmx, tsx := models.InitMapStaticResource("./map/map/pacman/map.tmx")
+	gravity := box2d.MakeB2Vec2(0.0, 0.0)
+	world := box2d.MakeB2World(gravity)
 
-  models.CreateBarrierBodysInWorld(&tmx, &tsx, &world);
+	models.CreateBarrierBodysInWorld(&tmx, &tsx, &world)
 
+	tmx.CollideMap = models.CollideMap(tmx.World, &tmx)
+	models.SignItemPosOnMap(&tmx)
 
-  tmx.CollideMap = models.CollideMap(tmx.World, &tmx);
-  models.SignItemPosOnMap(&tmx);
-
-  tmx.Path = models.FindPath(&tmx);
+	tmx.Path = models.FindPath(&tmx)
 }

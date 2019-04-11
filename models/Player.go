@@ -17,7 +17,7 @@ type Player struct {
 	Score             int32      `protobuf:"varint,10,opt,name=score,proto3" json:"score,omitempty"`
 	Removed           bool       `protobuf:"varint,11,opt,name=removed,proto3" json:"removed,omitempty"`
 	JoinIndex         int32      `protobuf:"varint,12,opt,name=joinIndex,proto3" json:"joinIndex,omitempty"`
-	         int32      `protobuf:"varint,12,opt,name=joinIndex,proto3" json:"joinIndex,omitempty"`
+	int32             `protobuf:"varint,12,opt,name=joinIndex,proto3" json:"joinIndex,omitempty"`
 }
 
 func (m *Player) Reset()         { *m = Player{} }

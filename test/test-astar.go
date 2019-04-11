@@ -1,19 +1,19 @@
 package main
 
 import (
-  "AI/astar"
+	"AI/astar"
 )
 
-func main(){
+func main() {
 
-  theMap := astar.Map{
-    {2, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0},
-    {0, 0, 0, 3, 0},
-  }
+	theMap := astar.Map{
+		{2, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0},
+		{0, 0, 0, 3, 0},
+	}
 
-  astar.AstarByMap(theMap);
+	astar.AstarByMap(theMap)
 
 }

@@ -1,22 +1,22 @@
 package models
 
 import (
-  "AI/astar"
+	"AI/astar"
 	"bytes"
 	"compress/zlib"
 	"encoding/base64"
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
+	"github.com/ByteArena/box2d"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"log"
 	"math"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
-	"github.com/ByteArena/box2d"
 )
 
 const (
@@ -74,8 +74,8 @@ type TmxTileset struct {
 
 //NEWMAP
 type Polyline struct {
-  //Points []*Vec2D `xml:"points,attr"`
-  Points string `xml:"points,attr"`
+	//Points []*Vec2D `xml:"points,attr"`
+	Points string `xml:"points,attr"`
 }
 
 type TmxObject struct {
@@ -83,8 +83,8 @@ type TmxObject struct {
 	X          float64       `xml:"x,attr"`
 	Y          float64       `xml:"y,attr"`
 	Properties TmxProperties `xml:"properties"`
-  //NEWMAP
-  Polyline   Polyline      `xml:"polyline"`
+	//NEWMAP
+	Polyline Polyline `xml:"polyline"`
 }
 
 type TmxObjectGroup struct {
@@ -114,25 +114,25 @@ type TmxMap struct {
 	TrapsInitPosList             []Vec2D
 	Pumpkin                      []*Vec2D
 
-  //kobako
-  CollideMap astar.Map
-  ContinuousPosMap [][]Vec2D
-  StartPoint Point
-  Path []astar.Point
-	World *box2d.B2World
+	//kobako
+	CollideMap       astar.Map
+	ContinuousPosMap [][]Vec2D
+	StartPoint       Point
+	Path             []astar.Point
+	World            *box2d.B2World
 }
 
-type Point struct{
-  X int
-  Y int
+type Point struct {
+	X int
+	Y int
 }
 
 type TreasuresInfo struct {
 	InitPos Vec2D
 	Type    int32
 	Score   int32
-  //DiscretePos Point
-  DiscretePos Point
+	//DiscretePos Point
+	DiscretePos Point
 }
 
 type SpeedShoesInfo struct {
@@ -247,31 +247,31 @@ func (m *TmxMap) GetCoordByGid(index int) (x float64, y float64) {
  *  从cocos解析器搬运过来
  */
 func (tmx *TmxMap) CoordToPoint(coord Vec2D) Point {
-  var minDistance float64 = 9999999
+	var minDistance float64 = 9999999
 
-  var result Point = Point{
-    X: -1,
-    Y: -1,
-  }
+	var result Point = Point{
+		X: -1,
+		Y: -1,
+	}
 
-  /*
-  //fmt.Println(tmx.ContinuousPosMap)
-  fmt.Println(tmx.ContinuousPosMap)
-  fmt.Println(tmx.Width, tmx.Height)
-  */
+	/*
+	  //fmt.Println(tmx.ContinuousPosMap)
+	  fmt.Println(tmx.ContinuousPosMap)
+	  fmt.Println(tmx.Width, tmx.Height)
+	*/
 
-  for i:=0; i<tmx.Height; i++ {
-    for j:=0; j<tmx.Width; j++ {
-      tilePos := tmx.ContinuousPosMap[i][j]
-      distance := Distance(coord, tilePos)
-      if distance < minDistance{
-        minDistance = distance
-        result.X = j
-        result.Y = i
-      }
-    }
-  }
-  return result
+	for i := 0; i < tmx.Height; i++ {
+		for j := 0; j < tmx.Width; j++ {
+			tilePos := tmx.ContinuousPosMap[i][j]
+			distance := Distance(coord, tilePos)
+			if distance < minDistance {
+				minDistance = distance
+				result.X = j
+				result.Y = i
+			}
+		}
+	}
+	return result
 }
 
 func (m *TmxMap) decodeLayerGid() error {
@@ -310,40 +310,37 @@ func (m *TmxMap) decodeLayerGid() error {
 func DeserializeToTsxIns(byteArr []byte, pTsxIns *Tsx) error {
 	err := xml.Unmarshal(byteArr, pTsxIns)
 
-
 	if err != nil {
 		return err
 	}
 
-
 	pPolyLineMap := make(map[int]*TmxPolyline, 0)
-  //对于tsx里面每一个tile
+	//对于tsx里面每一个tile
 	for _, tile := range pTsxIns.Tiles {
 
-    //有type属性的才处理
+		//有type属性的才处理
 		if tile.Properties.Property != nil && tile.Properties.Property[0].Name == "type" {
 
 			tileObjectGroup := tile.ObjectGroup
 			pPolyLineList := make([]*TmxPolyline, len(tileObjectGroup.TsxObjects))
 
-
-      //对于这个tile的每个TsxObject
+			//对于这个tile的每个TsxObject
 			for index, obj := range tileObjectGroup.TsxObjects {
-        //fmt.Println(obj)
+				//fmt.Println(obj)
 
 				initPos := &Vec2D{
 					X: obj.X,
 					Y: obj.Y,
 				}
-        //获取pointsArrayWrtInit数组, 一个二维数组(pair)的数组, 各个点
+				//获取pointsArrayWrtInit数组, 一个二维数组(pair)的数组, 各个点
 				singleValueArray := strings.Split(obj.Polyline.Points, " ")
 				pointsArrayWrtInit := make([]Vec2D, len(singleValueArray))
 				for key, value := range singleValueArray {
 					for k, v := range strings.Split(value, ",") {
 						n, err := strconv.ParseFloat(v, 64)
 						if err != nil {
-              fmt.Printf("ERRRRRRRRRR!!!!!!!! parse float %f \n" + value);
-              panic(err)
+							fmt.Printf("ERRRRRRRRRR!!!!!!!! parse float %f \n" + value)
+							panic(err)
 							//return err
 						}
 						if k%2 == 0 {
@@ -354,23 +351,23 @@ func DeserializeToTsxIns(byteArr []byte, pTsxIns *Tsx) error {
 					}
 				}
 
-        //fmt.Println(pointsArrayWrtInit);
+				//fmt.Println(pointsArrayWrtInit);
 
-        //end
+				//end
 
-        //根据scale来放大点
+				//根据scale来放大点
 				pointsArrayTransted := make([]*Vec2D, len(pointsArrayWrtInit))
 				var scale float64 = 0.5
 				for key, value := range pointsArrayWrtInit {
 					pointsArrayTransted[key] = &Vec2D{X: value.X - scale*float64(pTsxIns.TileWidth), Y: scale*float64(pTsxIns.TileHeight) - value.Y}
 				}
-        //end
+				//end
 
 				pPolyLineList[index] = &TmxPolyline{
 					InitPos: initPos,
 					Points:  pointsArrayTransted,
 				}
-        //fmt.Printf("%d \n", tile.Id);
+				//fmt.Printf("%d \n", tile.Id);
 				for _, pros := range obj.Properties {
 					for _, p := range pros.Property {
 						if p.Value == "barrier" {
@@ -379,8 +376,7 @@ func DeserializeToTsxIns(byteArr []byte, pTsxIns *Tsx) error {
 					}
 				}
 			}
-      //end对于每个TsxObject
-
+			//end对于每个TsxObject
 
 			if tile.Properties.Property[0].Value == "highScoreTreasure" {
 				pTsxIns.HigherTreasurePolyLineList = pPolyLineList
@@ -393,19 +389,19 @@ func DeserializeToTsxIns(byteArr []byte, pTsxIns *Tsx) error {
 			}
 
 			pTsxIns.BarrierPolyLineList = pPolyLineMap
-      //fmt.Printf("pPolyLineMap: %v \n", pPolyLineMap);
-		}else{
-      fmt.Printf("NOONONONONNOONN");
-    }
+			//fmt.Printf("pPolyLineMap: %v \n", pPolyLineMap);
+		} else {
+			fmt.Printf("NOONONONONNOONN")
+		}
 	}
 
-  //对于tsx里面每一个tile
+	//对于tsx里面每一个tile
 	return nil
 }
 
-func (pTmxMapIns *TmxMap) decodeObjectLayers() error{
+func (pTmxMapIns *TmxMap) decodeObjectLayers() error {
 	for _, objGroup := range pTmxMapIns.ObjectGroups {
-    //fmt.Println(objGroup.Name);
+		//fmt.Println(objGroup.Name);
 		if "highTreasures" == objGroup.Name {
 			pTmxMapIns.HighTreasuresInfo = make([]TreasuresInfo, len(objGroup.Objects))
 			for index, obj := range objGroup.Objects {
@@ -414,31 +410,30 @@ func (pTmxMapIns *TmxMap) decodeObjectLayers() error{
 					Y: obj.Y,
 				}
 
-
 				treasurePos := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&tmp)
 				pTmxMapIns.HighTreasuresInfo[index].Score = HIGH_SCORE_TREASURE_SCORE
 				pTmxMapIns.HighTreasuresInfo[index].Type = HIGH_SCORE_TREASURE_TYPE
 				pTmxMapIns.HighTreasuresInfo[index].InitPos = treasurePos
 
-        //kobako
-				pTmxMapIns.HighTreasuresInfo[index].DiscretePos.X = int(math.Floor(obj.X / float64(pTmxMapIns.TileWidth)));
-				pTmxMapIns.HighTreasuresInfo[index].DiscretePos.Y = int(math.Floor(obj.Y / float64(pTmxMapIns.TileHeight)));
+				//kobako
+				pTmxMapIns.HighTreasuresInfo[index].DiscretePos.X = int(math.Floor(obj.X / float64(pTmxMapIns.TileWidth)))
+				pTmxMapIns.HighTreasuresInfo[index].DiscretePos.Y = int(math.Floor(obj.Y / float64(pTmxMapIns.TileHeight)))
 			}
 		}
 
-    //kobako
-    if "controlled_players_starting_pos_list" == objGroup.Name{
-      pTmxMapIns.StartPoint.X = int(objGroup.Objects[1].X / float64(pTmxMapIns.TileWidth));
-      pTmxMapIns.StartPoint.Y = int(objGroup.Objects[1].Y / float64(pTmxMapIns.TileHeight));
-      fmt.Printf("Read the bot position in the object layer: controlled_players_starting_pos_list, then discrete, pos, : %v \n", pTmxMapIns.StartPoint);
-      /*
-			for index, obj := range objGroup.Objects {
-        pTmxMapIns.StartPoint.X = obj.X;
-        pTmxMapIns.StartPoint.Y = obj.Y;
-			}
-      */
-    }
-    //kobako
+		//kobako
+		if "controlled_players_starting_pos_list" == objGroup.Name {
+			pTmxMapIns.StartPoint.X = int(objGroup.Objects[1].X / float64(pTmxMapIns.TileWidth))
+			pTmxMapIns.StartPoint.Y = int(objGroup.Objects[1].Y / float64(pTmxMapIns.TileHeight))
+			fmt.Printf("Read the bot position in the object layer: controlled_players_starting_pos_list, then discrete, pos, : %v \n", pTmxMapIns.StartPoint)
+			/*
+						for index, obj := range objGroup.Objects {
+			        pTmxMapIns.StartPoint.X = obj.X;
+			        pTmxMapIns.StartPoint.Y = obj.Y;
+						}
+			*/
+		}
+		//kobako
 
 		if "treasures" == objGroup.Name {
 			pTmxMapIns.TreasuresInfo = make([]TreasuresInfo, len(objGroup.Objects))
@@ -490,7 +485,7 @@ func (pTmxMapIns *TmxMap) decodeObjectLayers() error{
 			}
 		}
 	}
-  return nil
+	return nil
 }
 
 func DeserializeToTmxMapIns(byteArr []byte, pTmxMapIns *TmxMap) error {
@@ -499,8 +494,8 @@ func DeserializeToTmxMapIns(byteArr []byte, pTmxMapIns *TmxMap) error {
 		return err
 	}
 
-  pTmxMapIns.decodeObjectLayers();
-	return pTmxMapIns.decodeLayerGidHacked();
+	pTmxMapIns.decodeObjectLayers()
+	return pTmxMapIns.decodeLayerGidHacked()
 }
 
 func (pTmxMap *TmxMap) ToXML() (string, error) {
@@ -536,22 +531,21 @@ func (pTmxMapIns *TmxMap) continuousObjLayerVecToContinuousMapNodeVec(continuous
 }
 
 func (m *TmxMap) decodeLayerGidHacked() error {
-  //collideMap := [m.Height][m.Width]uint8{};
-  //fmt.Println(collideMap);
-  /*
-  pathFindingMap := make([][]int, m.Height)
-  for i := range pathFindingMap {
-    pathFindingMap[i] = make([]int, m.Width)
-  }
-  */
+	//collideMap := [m.Height][m.Width]uint8{};
+	//fmt.Println(collideMap);
+	/*
+	  pathFindingMap := make([][]int, m.Height)
+	  for i := range pathFindingMap {
+	    pathFindingMap[i] = make([]int, m.Width)
+	  }
+	*/
 
 	for _, layer := range m.Layers {
-    fmt.Println(layer.Name)
+		fmt.Println(layer.Name)
 		gids, err := layer.decodeBase64()
 		if err != nil {
 			return err
 		}
-
 
 		tmxsets := make([]*TmxTile, len(gids))
 		for index, gid := range gids {
@@ -559,23 +553,23 @@ func (m *TmxMap) decodeLayerGidHacked() error {
 			if gid == 0 {
 				continue
 			}
-      //kobako
-      /*
-      if layer.Name == "tile_1 stone" || layer.Name == "tile_1 board" ||layer.Name == "tile_1 human skeleton"{
-        x := index / layer.Width;
-        y := index % layer.Width;
-        //pathFindingMap[x][y]= 1;
-      }
-      */
+			//kobako
+			/*
+			   if layer.Name == "tile_1 stone" || layer.Name == "tile_1 board" ||layer.Name == "tile_1 human skeleton"{
+			     x := index / layer.Width;
+			     y := index % layer.Width;
+			     //pathFindingMap[x][y]= 1;
+			   }
+			*/
 
 			flipHorizontal := (gid & FLIPPED_HORIZONTALLY_FLAG)
 			flipVertical := (gid & FLIPPED_VERTICALLY_FLAG)
 			flipDiagonal := (gid & FLIPPED_DIAGONALLY_FLAG)
 			gid := gid & ^(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG)
-      //fmt.Println(gid, index);
+			//fmt.Println(gid, index);
 			for i := len(m.Tilesets) - 1; i >= 0; i-- {
 				if m.Tilesets[i].FirstGid <= gid {
-          //fmt.Println(gid - m.Tilesets[i].FirstGid, index, i);
+					//fmt.Println(gid - m.Tilesets[i].FirstGid, index, i);
 					tmxsets[index] = &TmxTile{
 						Id:             gid - m.Tilesets[i].FirstGid,
 						Tileset:        m.Tilesets[i],
@@ -590,193 +584,188 @@ func (m *TmxMap) decodeLayerGidHacked() error {
 
 		layer.Tile = tmxsets
 
+		//fmt.Println(a);
 
-    //fmt.Println(a);
-
-    //fmt.Printf("%+v\n", tmxsets)
+		//fmt.Printf("%+v\n", tmxsets)
 	}
 
-  //astar.PrintMap(pathFindingMap);
-  //m.CollideMap = pathFindingMap;
+	//astar.PrintMap(pathFindingMap);
+	//m.CollideMap = pathFindingMap;
 	return nil
 }
 
 //在离散的二维数组上初始化道具位置
-func SignItemPosOnMap(tmxMapIns *TmxMap){
-    //初始化奖励位置
-  for _, hignTreasure := range tmxMapIns.HighTreasuresInfo{
-    fmt.Println(hignTreasure.DiscretePos.Y, hignTreasure.DiscretePos.X);
-    tmxMapIns.CollideMap[hignTreasure.DiscretePos.Y][hignTreasure.DiscretePos.X] = 3;
-  }
-  //初始化起点位置
-  tmxMapIns.CollideMap[tmxMapIns.StartPoint.Y][tmxMapIns.StartPoint.X] = 2;
-}
-
-
-//通过离散的二维数组进行寻路, 返回一个Point数组
-func FindPath(mapWithStartAndGoal astar.Map) []astar.Point{
-    path := astar.AstarByMap(mapWithStartAndGoal);
-    fmt.Printf("Path: %v \n",path);
-
-
-    //tmxMapIns.Path = path;
-    for _, pt := range path{
-      if(mapWithStartAndGoal[pt.Y][pt.X] != 1){
-        mapWithStartAndGoal[pt.Y][pt.X] = 9;
-      }
-    }
-    //astar.PrintMap(mapWithStartAndGoal);
-
-    //清空绿色点, 方便下次打印
-    for i:=0; i< len(mapWithStartAndGoal); i++ {
-      for j:=0; j< len(mapWithStartAndGoal[i]); j++ {
-        if(mapWithStartAndGoal[i][j] == 9){
-          mapWithStartAndGoal[i][j] = 0
-        }
-      }
-    }
-
-    return path;
+func SignItemPosOnMap(tmxMapIns *TmxMap) {
+	//初始化奖励位置
+	for _, hignTreasure := range tmxMapIns.HighTreasuresInfo {
+		fmt.Println(hignTreasure.DiscretePos.Y, hignTreasure.DiscretePos.X)
+		tmxMapIns.CollideMap[hignTreasure.DiscretePos.Y][hignTreasure.DiscretePos.X] = 3
+	}
+	//初始化起点位置
+	tmxMapIns.CollideMap[tmxMapIns.StartPoint.Y][tmxMapIns.StartPoint.X] = 2
 }
 
 //通过离散的二维数组进行寻路, 返回一个Point数组
-func FindPathByStartAndGoal(collideMap astar.Map, start astar.Point, goal astar.Point) []astar.Point{
-    path := astar.AstarByStartAndGoalPoint(collideMap, start, goal);
+func FindPath(mapWithStartAndGoal astar.Map) []astar.Point {
+	path := astar.AstarByMap(mapWithStartAndGoal)
+	fmt.Printf("Path: %v \n", path)
 
-    /*
-     * 打印地图
-     * 
-    fmt.Printf("Path: %v \n",path);
+	//tmxMapIns.Path = path;
+	for _, pt := range path {
+		if mapWithStartAndGoal[pt.Y][pt.X] != 1 {
+			mapWithStartAndGoal[pt.Y][pt.X] = 9
+		}
+	}
+	//astar.PrintMap(mapWithStartAndGoal);
 
-    //tmxMapIns.Path = path;
-    for _, pt := range path{
-      if(collideMap[pt.Y][pt.X] != 1){
-        collideMap[pt.Y][pt.X] = 9;
-      }
-    }
-    astar.PrintMap(collideMap);
+	//清空绿色点, 方便下次打印
+	for i := 0; i < len(mapWithStartAndGoal); i++ {
+		for j := 0; j < len(mapWithStartAndGoal[i]); j++ {
+			if mapWithStartAndGoal[i][j] == 9 {
+				mapWithStartAndGoal[i][j] = 0
+			}
+		}
+	}
 
-    //清空绿色点, 方便下次打印
-    for i:=0; i< len(collideMap); i++ {
-      for j:=0; j< len(collideMap[i]); j++ {
-        if(collideMap[i][j] == 9){
-          collideMap[i][j] = 0
-        }
-      }
-    }
-    */
+	return path
+}
 
-    return path;
+//通过离散的二维数组进行寻路, 返回一个Point数组
+func FindPathByStartAndGoal(collideMap astar.Map, start astar.Point, goal astar.Point) []astar.Point {
+	path := astar.AstarByStartAndGoalPoint(collideMap, start, goal)
+
+	/*
+	    * 打印地图
+	    *
+	   fmt.Printf("Path: %v \n",path);
+
+	   //tmxMapIns.Path = path;
+	   for _, pt := range path{
+	     if(collideMap[pt.Y][pt.X] != 1){
+	       collideMap[pt.Y][pt.X] = 9;
+	     }
+	   }
+	   astar.PrintMap(collideMap);
+
+	   //清空绿色点, 方便下次打印
+	   for i:=0; i< len(collideMap); i++ {
+	     for j:=0; j< len(collideMap[i]); j++ {
+	       if(collideMap[i][j] == 9){
+	         collideMap[i][j] = 0
+	       }
+	     }
+	   }
+	*/
+
+	return path
 }
 
 //读取tmx里特定多边形对象层, 为其中每个多边形创建CollidableBody
 //如果需要更换layer的名字, 修改barrierLayerName变量
-func CreateBarrierBodysInWorld(pTmxMapIns *TmxMap, world *box2d.B2World){
-  var barrierLayerName string = "barrier";
+func CreateBarrierBodysInWorld(pTmxMapIns *TmxMap, world *box2d.B2World) {
+	var barrierLayerName string = "barrier"
 
-  pTmxMapIns.World = world;
+	pTmxMapIns.World = world
 
 	for _, objGroup := range pTmxMapIns.ObjectGroups {
 
-    //fmt.Printf("objGroupName: %v \n", objGroup.Name)
+		//fmt.Printf("objGroupName: %v \n", objGroup.Name)
 
-    if barrierLayerName == objGroup.Name {
-      //fmt.Printf("objGroup: %v \n", objGroup)
-      for _, obj := range objGroup.Objects{
-          //fmt.Printf("PolyLine: %v \n", obj.Polyline)
+		if barrierLayerName == objGroup.Name {
+			//fmt.Printf("objGroup: %v \n", objGroup)
+			for _, obj := range objGroup.Objects {
+				//fmt.Printf("PolyLine: %v \n", obj.Polyline)
 
-          initPos := Vec2D{
-            X: obj.X,
-            Y: obj.Y,
-          }
+				initPos := Vec2D{
+					X: obj.X,
+					Y: obj.Y,
+				}
 
-          //Init Polygon body
-  				singleValueArray := strings.Split(obj.Polyline.Points, " ")
-  				pointsArrayWrtInit := make([]Vec2D, len(singleValueArray))
+				//Init Polygon body
+				singleValueArray := strings.Split(obj.Polyline.Points, " ")
+				pointsArrayWrtInit := make([]Vec2D, len(singleValueArray))
 
-          
-  				for key, value := range singleValueArray {
-  					for k, v := range strings.Split(value, ",") {
-  						n, err := strconv.ParseFloat(v, 64)
-  						if err != nil {
-                fmt.Printf("ERRRRRRRRRR!!!!!!!! parse float %f \n" + value);
-                panic(err)
-  							//return err
-  						}
-  						if k%2 == 0 {
-  							pointsArrayWrtInit[key].X = n + initPos.X
-  						} else {
-  							pointsArrayWrtInit[key].Y = n + initPos.Y
-  						}
-  					}
-  				}
+				for key, value := range singleValueArray {
+					for k, v := range strings.Split(value, ",") {
+						n, err := strconv.ParseFloat(v, 64)
+						if err != nil {
+							fmt.Printf("ERRRRRRRRRR!!!!!!!! parse float %f \n" + value)
+							panic(err)
+							//return err
+						}
+						if k%2 == 0 {
+							pointsArrayWrtInit[key].X = n + initPos.X
+						} else {
+							pointsArrayWrtInit[key].Y = n + initPos.Y
+						}
+					}
+				}
 
-          //fmt.Printf("PointsArrayWrtInit: %v \n", pointsArrayWrtInit)
+				//fmt.Printf("PointsArrayWrtInit: %v \n", pointsArrayWrtInit)
 
-    			pointsArrayTransted := make([]*Vec2D, len(pointsArrayWrtInit))
-          {
-    			  var scale float64 = 1.0
-    				for key, value := range pointsArrayWrtInit {
-              
-              vec := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&Vec2D{
-                X: value.X * scale,
-                Y: value.Y * scale,
-              })
-    					pointsArrayTransted[key] = &vec
+				pointsArrayTransted := make([]*Vec2D, len(pointsArrayWrtInit))
+				{
+					var scale float64 = 1.0
+					for key, value := range pointsArrayWrtInit {
 
-              //fmt.Printf("PointsArrayTransted: %v \n", vec)
-    				}
-          }
+						vec := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&Vec2D{
+							X: value.X * scale,
+							Y: value.Y * scale,
+						})
+						pointsArrayTransted[key] = &vec
 
-          {
-            //CreateBody
-      
-            //Get body def by X,Y
-      			var bdDef box2d.B2BodyDef
-      			bdDef = box2d.MakeB2BodyDef()
-      			bdDef.Type = box2d.B2BodyType.B2_staticBody
-      			//bdDef.Position.Set(barrierCoord.X, barrierCoord.Y)
-      			bdDef.Position.Set(0, 0)
-      
-      			b2BarrierBody := world.CreateBody(&bdDef);
-      
-            //Get fixture def by Points
-      			fd := box2d.MakeB2FixtureDef()
-            {
-      				b2Vertices := make([]box2d.B2Vec2, len(pointsArrayTransted))
-      				for vIndex, vec := range pointsArrayTransted {
-      					b2Vertices[vIndex] = vec.ToB2Vec2()
-      				}
-      				b2PolygonShape := box2d.MakeB2PolygonShape()
-      				b2PolygonShape.Set(b2Vertices, len(pointsArrayTransted))
-      				fd.Shape = &b2PolygonShape
-            }
-      
-      			//fd.Filter.CategoryBits = COLLISION_CATEGORY_BARRIER
-      			//fd.Filter.MaskBits = COLLISION_MASK_FOR_BARRIER
-      	    fd.Filter.CategoryBits = 2;
-      	    fd.Filter.MaskBits = 1;
-      			fd.Density = 0.0
-      			b2BarrierBody.CreateFixtureFromDef(&fd)
-  
-          }
-      }
-    }
-  }
+						//fmt.Printf("PointsArrayTransted: %v \n", vec)
+					}
+				}
+
+				{
+					//CreateBody
+
+					//Get body def by X,Y
+					var bdDef box2d.B2BodyDef
+					bdDef = box2d.MakeB2BodyDef()
+					bdDef.Type = box2d.B2BodyType.B2_staticBody
+					//bdDef.Position.Set(barrierCoord.X, barrierCoord.Y)
+					bdDef.Position.Set(0, 0)
+
+					b2BarrierBody := world.CreateBody(&bdDef)
+
+					//Get fixture def by Points
+					fd := box2d.MakeB2FixtureDef()
+					{
+						b2Vertices := make([]box2d.B2Vec2, len(pointsArrayTransted))
+						for vIndex, vec := range pointsArrayTransted {
+							b2Vertices[vIndex] = vec.ToB2Vec2()
+						}
+						b2PolygonShape := box2d.MakeB2PolygonShape()
+						b2PolygonShape.Set(b2Vertices, len(pointsArrayTransted))
+						fd.Shape = &b2PolygonShape
+					}
+
+					//fd.Filter.CategoryBits = COLLISION_CATEGORY_BARRIER
+					//fd.Filter.MaskBits = COLLISION_MASK_FOR_BARRIER
+					fd.Filter.CategoryBits = 2
+					fd.Filter.MaskBits = 1
+					fd.Density = 0.0
+					b2BarrierBody.CreateFixtureFromDef(&fd)
+
+				}
+			}
+		}
+	}
 }
 
-
 //根据tmx路径初始化TmxMap以及Tsx(TODO: Tsx路径现在是hardcode的)
-func InitMapStaticResource(relativePath string) (TmxMap,Tsx) {
+func InitMapStaticResource(relativePath string) (TmxMap, Tsx) {
 	execPath, err := os.Executable()
-  if err != nil{
-    panic(err);
-  }
+	if err != nil {
+		panic(err)
+	}
 
 	pwd, err := os.Getwd()
-  if err != nil{
-    panic(err);
-  }
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Printf("execPath = %v, pwd = %s, returning...\n", execPath, pwd)
 
@@ -789,9 +778,9 @@ func InitMapStaticResource(relativePath string) (TmxMap,Tsx) {
 	}
 
 	byteArr, err := ioutil.ReadFile(fp)
-  if err != nil{
-    panic(err);
-  }
+	if err != nil {
+		panic(err)
+	}
 
 	DeserializeToTmxMapIns(byteArr, pTmxMapIns)
 
@@ -806,21 +795,19 @@ func InitMapStaticResource(relativePath string) (TmxMap,Tsx) {
 	}
 
 	byteArr, err = ioutil.ReadFile(fp)
-  if err != nil{
-    panic(err);
-  }
+	if err != nil {
+		panic(err)
+	}
 
-  err = DeserializeToTsxIns(byteArr, pTsxIns);
-  if err != nil{
-    panic(err);
-  }
+	err = DeserializeToTsxIns(byteArr, pTsxIns)
+	if err != nil {
+		panic(err)
+	}
 
-  return tmxMapIns, tsxIns;
+	return tmxMapIns, tsxIns
 }
 
-
-
-func MockPlayerBody(world *box2d.B2World) *box2d.B2Body{
+func MockPlayerBody(world *box2d.B2World) *box2d.B2Body {
 	var bdDef box2d.B2BodyDef
 	//colliderOffset := box2d.MakeB2Vec2(0, 0) // Matching that of client-side setting.
 	bdDef = box2d.MakeB2BodyDef()
@@ -837,69 +824,67 @@ func MockPlayerBody(world *box2d.B2World) *box2d.B2Body{
 
 	//fd.Filter.CategoryBits = COLLISION_CATEGORY_CONTROLLED_PLAYER
 	//fd.Filter.MaskBits = COLLISION_MASK_FOR_CONTROLLED_PLAYER
-  //mark
-	fd.Filter.CategoryBits = 1;
-	fd.Filter.MaskBits = 2;
+	//mark
+	fd.Filter.CategoryBits = 1
+	fd.Filter.MaskBits = 2
 
 	fd.Density = 0.0
 	b2PlayerBody.CreateFixtureFromDef(&fd)
-  return b2PlayerBody
+	return b2PlayerBody
 }
 
 //根据world里的collidableBody信息初始化一个离散的二维数组, 0为可通行区域, 1为障碍物
-func InitCollideMap(world *box2d.B2World,  pTmx *TmxMap) astar.Map{
+func InitCollideMap(world *box2d.B2World, pTmx *TmxMap) astar.Map {
 
-  //fmt.Printf("222222222 Body count: %d \n", world.GetBodyCount())
+	//fmt.Printf("222222222 Body count: %d \n", world.GetBodyCount())
 
-  width := pTmx.Width;
-  height := pTmx.Height;
+	width := pTmx.Width
+	height := pTmx.Height
 
-  uniformTimeStepSeconds := 1.0 / 60.0
-  uniformVelocityIterations := 0
-  uniformPositionIterations := 0
+	uniformTimeStepSeconds := 1.0 / 60.0
+	uniformVelocityIterations := 0
+	uniformPositionIterations := 0
 
-  collideMap := make([]int, width * height)
+	collideMap := make([]int, width*height)
 
+	/**
+	 *  初始化一个假的玩家body, 遍历所有格子, 将这个body放到格子的正中间, 用box2d判断是否发生碰撞, 如果碰撞标记1
+	 */
 
-  /**
-   *  初始化一个假的玩家body, 遍历所有格子, 将这个body放到格子的正中间, 用box2d判断是否发生碰撞, 如果碰撞标记1
-   */
+	playerBody := MockPlayerBody(world)
 
-  playerBody := MockPlayerBody(world)
-
-  for k, _ := range collideMap{
-    x, y := pTmx.GetCoordByGid(k)
-    /*
-  	playerBody.x = x
-  	playerBody.y = y
-    */
+	for k, _ := range collideMap {
+		x, y := pTmx.GetCoordByGid(k)
+		/*
+			playerBody.x = x
+			playerBody.y = y
+		*/
 
 		newB2Vec2Pos := box2d.MakeB2Vec2(x, y)
 		MoveDynamicBody(playerBody, &newB2Vec2Pos, 0)
 
-    world.Step(uniformTimeStepSeconds, uniformVelocityIterations,uniformPositionIterations)
+		world.Step(uniformTimeStepSeconds, uniformVelocityIterations, uniformPositionIterations)
 
-    /*
-  	if(playerBody.collided){
-  		collideMap[gid] = 1
-  	}
-    */
+		/*
+			if(playerBody.collided){
+				collideMap[gid] = 1
+			}
+		*/
 
-    collided := false;
+		collided := false
 		for edge := playerBody.GetContactList(); edge != nil; edge = edge.Next {
 			if edge.Contact.IsTouching() {
-        collided = true;
-        //log.Printf("player contact at gid %d ", k);
-        break;
+				collided = true
+				//log.Printf("player contact at gid %d ", k);
+				break
 			}
 		}
 
-    if(collided){
-      collideMap[k] = 1;
-    }
+		if collided {
+			collideMap[k] = 1
+		}
 
-  }
+	}
 
-  return astar.AstarArrayToMap(collideMap, pTmx.Width, pTmx.Height);
+	return astar.AstarArrayToMap(collideMap, pTmx.Width, pTmx.Height)
 }
-

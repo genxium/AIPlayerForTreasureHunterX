@@ -1,39 +1,38 @@
 package main
 
-import(
-  "fmt"
-	"AI/models"
-	"github.com/ByteArena/box2d"
+import (
 	"AI/astar"
+	"AI/models"
+	"fmt"
+	"github.com/ByteArena/box2d"
 	//"path/filepath"
 	//"os"
 	//"time"
 	//"io/ioutil"
 )
 
-func main(){
-  tmx, _ := models.InitMapStaticResource("./map/map/pacman/map.tmx");
-	gravity := box2d.MakeB2Vec2(0.0, 0.0);
-  world := box2d.MakeB2World(gravity);
+func main() {
+	tmx, _ := models.InitMapStaticResource("./map/map/pacman/map.tmx")
+	gravity := box2d.MakeB2Vec2(0.0, 0.0)
+	world := box2d.MakeB2World(gravity)
 
-  models.CreateBarrierBodysInWorld(&tmx, &world);
+	models.CreateBarrierBodysInWorld(&tmx, &world)
 
+	tmx.CollideMap = models.CollideMap(tmx.World, &tmx)
+	//models.SignItemPosOnMap(&tmx);
 
-  tmx.CollideMap = models.CollideMap(tmx.World, &tmx);
-  //models.SignItemPosOnMap(&tmx);
+	//Test
+	start := astar.Point{
+		X: 44,
+		Y: 5,
+	}
 
-  //Test
-  start := astar.Point{
-    X: 44,
-    Y: 5,
-  }
+	goal := astar.Point{
+		X: 18,
+		Y: 41,
+	}
+	//Test
 
-  goal := astar.Point{
-    X: 18,
-    Y: 41,
-  }
-  //Test
-
-  path := models.FindPathByStartAndGoal(tmx.CollideMap, start, goal);
-  fmt.Println(path)
+	path := models.FindPathByStartAndGoal(tmx.CollideMap, start, goal)
+	fmt.Println(path)
 }

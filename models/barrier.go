@@ -13,7 +13,7 @@ type Barrier struct {
 }
 
 type Barrier2 struct {
-	X              float64
-	Y              float64
+	X    float64
+	Y    float64
 	Body *box2d.B2Body
 }

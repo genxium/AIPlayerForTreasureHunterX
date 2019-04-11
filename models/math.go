@@ -3,7 +3,7 @@ package models
 import (
 	"fmt"
 	"github.com/ByteArena/box2d"
-  "math"
+	"math"
 )
 
 type Vec2D struct {
@@ -18,10 +18,10 @@ func CreateVec2DFromB2Vec2(b2V2 box2d.B2Vec2) *Vec2D {
 	}
 }
 
-func Distance(pt1 Vec2D, pt2 Vec2D) float64{
-  dx := pt1.X - pt2.X;
-  dy := pt1.Y - pt2.Y;
-  return math.Sqrt(dx * dx + dy * dy);
+func Distance(pt1 Vec2D, pt2 Vec2D) float64 {
+	dx := pt1.X - pt2.X
+	dy := pt1.Y - pt2.Y
+	return math.Sqrt(dx*dx + dy*dy)
 }
 
 func (v2 *Vec2D) ToB2Vec2() box2d.B2Vec2 {
