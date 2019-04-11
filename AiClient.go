@@ -608,7 +608,7 @@ func (client *Client) upsyncFrameData() {
 
 //kobako: 从下行帧解析宝物信息是否减少
 func (client *Client) decodeProtoBuf(message []byte) {
-  log.Println("About to decode message into models.RoomDownsyncFrame:", message)
+  //log.Println("About to decode message into models.RoomDownsyncFrame:", message)
 	room_downsync_frame := models.RoomDownsyncFrame{}
 	err := proto.Unmarshal(message, &room_downsync_frame)
 	if err != nil {

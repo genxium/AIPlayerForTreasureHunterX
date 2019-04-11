@@ -61,7 +61,7 @@ func GotToGoal(step float64, walkInfo *WalkInfo) bool {
 		if d < eps {
 			walkInfo.CurrentPos = tarPos
 			walkInfo.CurrentTarIndex = walkInfo.CurrentTarIndex + 1
-			fmt.Println("Got to next point")
+			//fmt.Println("Got to next point")
 		} else {
 			walkInfo.CurrentPos = nextPos
 		}

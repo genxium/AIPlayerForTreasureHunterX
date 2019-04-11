@@ -9,7 +9,7 @@ basedir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 OS_USER=$USER
 ServerEnv=$1
-LOG_PATH="/var/log/treasure-hunter-x-bot-server.pid.log"
+LOG_PATH="/var/log/treasure-hunter-x-bot-server.log"
 
 # Make sure that the following "PidFile" is "git ignored".
 PID_FILE="$basedir/treasure-hunter-x-bot-server.pid"

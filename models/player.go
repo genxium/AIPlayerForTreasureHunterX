@@ -12,5 +12,5 @@ type Player struct {
 	DisplayName         string        `protobuf:"bytes,9,opt,name=displayName,proto3" json:"displayName,omitempty" db:"display_name"`
 	Score               int32         `protobuf:"varint,10,opt,name=score,proto3" json:"score,omitempty"`
 	JoinIndex           int32         `protobuf:"varint,12,opt,name=joinIndex,proto3 " json:"joinIndex"`
-	Avatar              string        `protobuf:"varint,13,opt,name=avatar,proto3" json:"avatar,omitempty"`
+	Avatar              string        `protobuf:"bytes,13,opt,name=avatar,proto3" json:"avatar,omitempty"`
 }
