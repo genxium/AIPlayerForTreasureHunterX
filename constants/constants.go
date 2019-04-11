@@ -2,12 +2,18 @@ package constants
 
 // TODO: Read from config file!
 
-import ()
+type NetConf struct{
+  PROTOCOL string
+  HOST string
+  PORT string
+}
 
-const (
-	PROTOCOL    = "http"
-	HOST        = "localhost"
-	PORT        = "9992"
+var (
+  SERVER = NetConf{
+	  PROTOCOL    : "http",
+	  HOST        : "localhost",
+    PORT        : ":9992",
+  }
 	API         = "/api"
 	VERSION     = "/v1"
 	PLAYER      = "/player"

@@ -110,7 +110,7 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	u := url.URL{Scheme: "ws", Host: constants.HOST + ":" + constants.PORT, Path: "/tsrht"}
+	u := url.URL{Scheme: "ws", Host: constants.SERVER.HOST + constants.SERVER.PORT, Path: "/tsrht"}
 	q := u.Query()
 
 	//TODO: Error handle

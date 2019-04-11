@@ -27,7 +27,7 @@ type RespSmsLogin struct {
 func GetCaptchaByName(botName string) RespGetCaptcha {
 	var respGetCaptcha RespGetCaptcha
 	{
-		const pathGetCaptcha = C.PROTOCOL + "://" + C.HOST + ":" + C.PORT + C.API + C.PLAYER + C.VERSION + C.SMS_CAPTCHA + C.GET
+    pathGetCaptcha := C.SERVER.PROTOCOL + "://" + C.SERVER.HOST + C.SERVER.PORT + C.API + C.PLAYER + C.VERSION + C.SMS_CAPTCHA + C.GET
 		fmt.Println(pathGetCaptcha)
 		resp, err := http.Get(pathGetCaptcha + "?phoneNum=" + botName + "&phoneCountryCode=86")
 		if err != nil {
@@ -47,7 +47,7 @@ func GetCaptchaByName(botName string) RespGetCaptcha {
 func GetIntAuthTokenByCaptcha(botName string, captcha string) (token string, playerId int) {
 	var respSmsLogin RespSmsLogin
 	{
-		const pathSmsLogin = C.PROTOCOL + "://" + C.HOST + ":" + C.PORT + C.API + C.PLAYER + C.VERSION + C.SMS_CAPTCHA + C.LOGIN
+    pathSmsLogin := C.SERVER.PROTOCOL + "://" + C.SERVER.HOST + C.SERVER.PORT + C.API + C.PLAYER + C.VERSION + C.SMS_CAPTCHA + C.LOGIN
 		resp, err := http.PostForm(pathSmsLogin, url.Values{"smsLoginCaptcha": {captcha}, "phoneNum": {botName}, "phoneCountryCode": {"86"}})
 		if err != nil {
 			// handle error
