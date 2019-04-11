@@ -8,7 +8,7 @@ require (
 	github.com/golang/protobuf v1.3.1
 	github.com/gorilla/websocket v1.4.0
 	github.com/logrusorgru/aurora v0.0.0-20181002194514-a7b3b318ed4e
-	github.com/mattn/go-isatty v0.0.7 // indirect
+	github.com/mattn/go-isatty v0.0.3 // indirect
 	github.com/ugorji/go v1.1.4 // indirect
 	go.uber.org/atomic v1.3.2 // indirect
 	go.uber.org/multierr v1.1.0 // indirect

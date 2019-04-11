@@ -6,5 +6,6 @@ user@~> cd $GOPATH/src/golang.org/x/
 user@~> git clone https://github.com/golang/sys.git
 ```
 
-and rebuild the project.
+, then specify local dependency of `golang.org/x/sys` in `go.mod` and rebuild the project.
 
+Keep using `go-isatty v0.0.3` in `go.mod` if you don't want any trouble circumventing the GFW.
