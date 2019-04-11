@@ -55,7 +55,7 @@ func GotToGoal(step float64, walkInfo *WalkInfo) bool {
 
 		//fmt.Println(nextPos);
 
-		d := Distance(nextPos, tarPos)
+		d := Distance(&nextPos, &tarPos)
 		//fmt.Println(d);
 
 		if d < eps {
