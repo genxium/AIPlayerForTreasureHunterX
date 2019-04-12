@@ -111,7 +111,7 @@ func isBarrier(m Map, pt Point) bool {
 }
 
 func AstarByStartAndGoalPoint(m Map, start Point, goal Point) []Point {
-	fmt.Printf("Astar start: start at: %v, goal at: %v", start, goal)
+	//fmt.Printf("Astar start: start at: %v, goal at: %v", start, goal)
 
 	openSet := mapset.NewSet(start)
 	closeSet := mapset.NewSet()
@@ -132,7 +132,7 @@ func AstarByStartAndGoalPoint(m Map, start Point, goal Point) []Point {
 
 		currentKey, current := minimum(openSet, fScore)
 		if current.equal(goal) {
-			fmt.Println("Reach Goal")
+			//fmt.Println("Reach Goal")
 			path = reconstructPath(cameFrom, current, path)
 			//fmt.Println(cameFrom);
 			break

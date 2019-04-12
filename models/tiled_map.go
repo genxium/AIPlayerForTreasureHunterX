@@ -115,10 +115,7 @@ type TmxMap struct {
 	Pumpkin                      []*Vec2D
 
 	//kobako
-	CollideMap       astar.Map
 	ContinuousPosMap [][]Vec2D
-	StartPoint       Point
-	Path             []astar.Point
 	World            *box2d.B2World
 }
 
@@ -421,19 +418,15 @@ func (pTmxMapIns *TmxMap) decodeObjectLayers() error {
 			}
 		}
 
+    /*
 		//kobako
 		if "controlled_players_starting_pos_list" == objGroup.Name {
 			pTmxMapIns.StartPoint.X = int(objGroup.Objects[1].X / float64(pTmxMapIns.TileWidth))
 			pTmxMapIns.StartPoint.Y = int(objGroup.Objects[1].Y / float64(pTmxMapIns.TileHeight))
 			fmt.Printf("Read the bot position in the object layer: controlled_players_starting_pos_list, then discrete, pos, : %v \n", pTmxMapIns.StartPoint)
-			/*
-						for index, obj := range objGroup.Objects {
-			        pTmxMapIns.StartPoint.X = obj.X;
-			        pTmxMapIns.StartPoint.Y = obj.Y;
-						}
-			*/
 		}
 		//kobako
+    */
 
 		if "treasures" == objGroup.Name {
 			pTmxMapIns.TreasuresInfo = make([]TreasuresInfo, len(objGroup.Objects))
@@ -592,17 +585,6 @@ func (m *TmxMap) decodeLayerGidHacked() error {
 	//astar.PrintMap(pathFindingMap);
 	//m.CollideMap = pathFindingMap;
 	return nil
-}
-
-//在离散的二维数组上初始化道具位置
-func SignItemPosOnMap(tmxMapIns *TmxMap) {
-	//初始化奖励位置
-	for _, hignTreasure := range tmxMapIns.HighTreasuresInfo {
-		fmt.Println(hignTreasure.DiscretePos.Y, hignTreasure.DiscretePos.X)
-		tmxMapIns.CollideMap[hignTreasure.DiscretePos.Y][hignTreasure.DiscretePos.X] = 3
-	}
-	//初始化起点位置
-	tmxMapIns.CollideMap[tmxMapIns.StartPoint.Y][tmxMapIns.StartPoint.X] = 2
 }
 
 //通过离散的二维数组进行寻路, 返回一个Point数组
