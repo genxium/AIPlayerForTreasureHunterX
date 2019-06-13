@@ -184,13 +184,16 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 					log.Println("Err unmarshalling respPb:", err)
 				}
 				client.decodeProtoBuf(respPb.Data)
-				client.controller()
-				client.checkReFindPath() //kobako
-				client.upsyncFrameData()
+				//client.checkReFindPath() //kobako
 			} else {
 				//handleHbRequirements(resp)
 			}
-			//time.Sleep(time.Duration(int64(20)))
+			go func() {
+				client.controller()
+				client.checkReFindPath()
+				client.upsyncFrameData()
+				time.Sleep(time.Duration(int64(20)))
+			}()
 		}
 	}()
 
@@ -425,7 +428,10 @@ func (client *Client) initTreasureAndPlayers() {
 }
 
 func (client *Client) checkReFindPath() {
-  // 仅当 (当前帧的宝物数量比上一帧少 && 目标宝物id被吃掉)  的时候重新寻路
+	// 仅当 (当前帧的宝物数量比上一帧少 && 目标宝物id被吃掉)  的时候重新寻路
+	if client.LastRoomDownsyncFrame == nil {
+		return
+	}
 	if client.LastRoomDownsyncFrame.RefFrameId != 0 && len(client.LastRoomDownsyncFrame.Treasures) != client.LastFrameRemovedTreasureNum {
 		//fmt.Printf("last number %d, now number %d \n", client.LastFrameRemovedTreasureNum, len(client.LastRoomDownsyncFrame.Treasures))
 		client.LastFrameRemovedTreasureNum = len(client.LastRoomDownsyncFrame.Treasures)
