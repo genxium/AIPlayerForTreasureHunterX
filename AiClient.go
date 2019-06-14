@@ -133,8 +133,6 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 	}
 	defer c.Close()
 
-	done := make(chan struct{})
-
 	client := &Client{
 		LastRoomDownsyncFrame: nil,
 		BattleState:           -1,
@@ -183,6 +181,7 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 
 			for {
 				if swapped := atomic.CompareAndSwapInt32(&killSignal, 1, 1); swapped {
+					log.Println("Upsync exit")
 					return
 				}
 				client.controller()
@@ -201,6 +200,7 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 
 			for {
 				if swapped := atomic.CompareAndSwapInt32(&killSignal, 1, 1); swapped {
+					log.Println("Downsync exit")
 					return
 				}
 
@@ -229,25 +229,15 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 		go upsyncLoopFunc()
 		go downSyncLoopFunc()
 
-	for {
-		select {
-		case <-done:
-			fmt.Println("All done. ")
+		elapsedTime := 0
+		for {
+		  elapsedTime = elapsedTime + 1
+		  if elapsedTime > 60 {
+			atomic.CompareAndSwapInt32(&killSignal, 0, 1)
 			return
-		case <-interrupt:
-			log.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!interrupt")
-			err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-			if err != nil {
-				log.Println("write close:", err)
-				return
-			}
-			select {
-			case <-done:
-			case <-time.After(time.Second):
-			}
-			return
+		  }
+		  time.Sleep(time.Second)
 		}
-	}
 }
 
 func main() {
@@ -360,7 +350,7 @@ func reFindPath(tmx *models.TmxMap, client *Client) {
 
 
   pointPath := client.pathFinding.FindPointPath(startPoint, endPoint)
-	//fmt.Printf("The point path: %v", pointPath)
+	fmt.Printf("The point path: %v", pointPath)
 
 	//将离散的路径转为连续坐标, 初始化walkInfo, 每次controller的时候调用
 	var path []models.Vec2D
@@ -498,9 +488,6 @@ func (client *Client) controller() {
 		client.BattleState = IN_BATTLE
 		//初始化需要寻找的宝物和玩家位置
 		client.InitPlayerCollider()
-		client.Player.X = client.LastRoomDownsyncFrame.Players[int32(client.Player.Id)].X
-		client.Player.Y = client.LastRoomDownsyncFrame.Players[int32(client.Player.Id)].Y
-		client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)
 		client.initTreasureAndPlayers()
 		fmt.Println("Init coord: ", client.Player.X, client.Player.Y);  
 		fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", client.LastRoomDownsyncFrame.Id, len(client.LastRoomDownsyncFrame.Treasures), client.LastRoomDownsyncFrame.RefFrameId)
