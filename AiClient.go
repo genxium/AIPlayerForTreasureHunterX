@@ -25,6 +25,7 @@ import (
 	"time"
 	"context"
 	"sync/atomic"
+	"runtime/debug"
 )
 
 const (
@@ -99,6 +100,7 @@ type Client struct {
 
 	//寻路抽象(Incomplete) --kobako
 	pathFinding *models.PathFinding
+	Started bool
 }
 
 func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager) {
@@ -158,6 +160,7 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 	collideMap := models.InitCollideMap(tmx.World, &tmx)
 	client.pathFinding.SetCollideMap(collideMap)
 
+	client.Started = false
 	killSignal := int32(0)
 
 		/*defer func() {
@@ -174,6 +177,7 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 			defer func() {
 				if r := recover(); r != nil {
 					log.Println("Recovered from panic in upsync", r)
+					fmt.Printf("panic in upsync: %v \n", string(debug.Stack()))
 				}
 			}()
 
@@ -482,15 +486,23 @@ func (client *Client) checkReFindPath() {
 }
 
 func (client *Client) controller() {
-	if client.Player.Speed == 0 {
+	/*if client.Player.Speed == 0 {
+		return
+	}*/
+	if client.LastRoomDownsyncFrame == nil {
 		return
 	}
-	if client.LastRoomDownsyncFrame.Id == 1 || client.LastRoomDownsyncFrame.Id == 2 { // 初始帧
+	if !client.Started && client.LastRoomDownsyncFrame.Id > 0 { // 初始帧
+		client.Started = true
 		log.Println("Game Start")
 		client.BattleState = IN_BATTLE
 		//初始化需要寻找的宝物和玩家位置
 		client.InitPlayerCollider()
+		client.Player.X = client.LastRoomDownsyncFrame.Players[int32(client.Player.Id)].X
+		client.Player.Y = client.LastRoomDownsyncFrame.Players[int32(client.Player.Id)].Y
+		client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)
 		client.initTreasureAndPlayers()
+		fmt.Println("Init coord: ", client.Player.X, client.Player.Y);  
 		fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", client.LastRoomDownsyncFrame.Id, len(client.LastRoomDownsyncFrame.Treasures), client.LastRoomDownsyncFrame.RefFrameId)
 	} else {
 		step := 16.0
@@ -574,7 +586,7 @@ func foolMove(client *Client, step float64) {
 
 func pathFindingMove(client *Client, step float64) {
 	//通过服务器位置进行修正
-  	//client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)
+	//client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)
   	client.pathFinding.Move(step)
 	client.Player.X = client.pathFinding.CurrentCoord.X
 	client.Player.Y = client.pathFinding.CurrentCoord.Y
@@ -635,10 +647,10 @@ func (client *Client) decodeProtoBuf(message []byte) {
 
 	//根据最新一帧的信息设置bot玩家的新位置及方向等
 	client.LastRoomDownsyncFrame = &room_downsync_frame
-	client.Player.Speed = room_downsync_frame.Players[int32(client.Player.Id)].Speed
-	client.Player.Dir = room_downsync_frame.Players[int32(client.Player.Id)].Dir
-	client.Player.X = room_downsync_frame.Players[int32(client.Player.Id)].X
-	client.Player.Y = room_downsync_frame.Players[int32(client.Player.Id)].Y
+	//client.Player.Speed = room_downsync_frame.Players[int32(client.Player.Id)].Speed
+	//client.Player.Dir = room_downsync_frame.Players[int32(client.Player.Id)].Dir
+	//client.Player.X = room_downsync_frame.Players[int32(client.Player.Id)].X
+	//client.Player.Y = room_downsync_frame.Players[int32(client.Player.Id)].Y
 
 	//fmt.Printf("Treasures length: %d \n", len(room_downsync_frame.Treasures))
 	//fmt.Printf("room_downsync_frame: Id: %d, RefFrameId: %d, Treasures: %v \n", room_downsync_frame.Id, room_downsync_frame.RefFrameId, room_downsync_frame.Treasures)
