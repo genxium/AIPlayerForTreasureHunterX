@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"time"
 	"context"
+	"sync/atomic"
 )
 
 const (
@@ -132,70 +133,97 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 
 	done := make(chan struct{})
 
-	go func() {
+	client := &Client{
+		LastRoomDownsyncFrame: nil,
+		BattleState:           -1,
+		c:                     c,
+		Player:                &models.Player{Id: int32(playerId)},
+		Barrier:               make(map[int32]*models.Barrier),
+		Radian:                math.Pi / 2,
+		Dir:                   models.Direction{Dx: 0, Dy: 1},
+		pathFinding:           new(models.PathFinding),
+	}
 
-		defer func() {
+	//初始化地图资源
+	tmx, _ := models.InitMapStaticResource("./map/map/pacman/map.tmx")
+	client.TmxIns = &tmx
+
+	gravity := box2d.MakeB2Vec2(0.0, 0.0)
+	world := box2d.MakeB2World(gravity)
+
+	client.CollidableWorld = &world
+
+	models.CreateBarrierBodysInWorld(&tmx, &world)
+
+	collideMap := models.InitCollideMap(tmx.World, &tmx)
+	client.pathFinding.SetCollideMap(collideMap)
+
+	killSignal := int32(0)
+
+		/*defer func() {
 			if r := recover(); r != nil {
 				log.Println("Recovered from panic", r)
 			}
 
-      log.Println("Exiting lifecycle of bot:", botName, " for room:", expectedRoomId)
+      	log.Println("Exiting lifecycle of bot:", botName, " for room:", expectedRoomId)
 			close(done)
-		}()
+		}()*/
 
-		client := &Client{
-			LastRoomDownsyncFrame: nil,
-			BattleState:           -1,
-			c:                     c,
-			Player:                &models.Player{Id: int32(playerId)},
-			Barrier:               make(map[int32]*models.Barrier),
-			Radian:                math.Pi / 2,
-			Dir:                   models.Direction{Dx: 0, Dy: 1},
-			pathFinding:           new(models.PathFinding),
-		}
-
-		//初始化地图资源
-		tmx, _ := models.InitMapStaticResource("./map/map/pacman/map.tmx")
-		client.TmxIns = &tmx
-
-		gravity := box2d.MakeB2Vec2(0.0, 0.0)
-		world := box2d.MakeB2World(gravity)
-
-		client.CollidableWorld = &world
-
-		models.CreateBarrierBodysInWorld(&tmx, &world)
-
-    collideMap := models.InitCollideMap(tmx.World, &tmx)
-    client.pathFinding.SetCollideMap(collideMap)
-
-		for {
-			var resp *wsResp
-			resp = new(wsResp)
-			err := c.ReadJSON(resp)
-			if err != nil {
-				//log.Println("marshal wsResp:", err)
-			}
-
-			if resp.Act == "RoomDownsyncFrame" {
-				var respPb *wsRespPb
-				respPb = new(wsRespPb)
-				err := c.ReadJSON(respPb)
-				if err != nil {
-					log.Println("Err unmarshalling respPb:", err)
+		
+		upsyncLoopFunc := func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Println("Recovered from panic in upsync", r)
 				}
-				client.decodeProtoBuf(respPb.Data)
-				//client.checkReFindPath() //kobako
-			} else {
-				//handleHbRequirements(resp)
-			}
-			go func() {
+			}()
+
+			for {
+				if swapped := atomic.CompareAndSwapInt32(&killSignal, 1, 1); swapped {
+					return
+				}
 				client.controller()
 				client.checkReFindPath()
 				client.upsyncFrameData()
-				time.Sleep(time.Duration(int64(20)))
-			}()
+				time.Sleep(time.Second / 10)
+			}
 		}
-	}()
+
+		downSyncLoopFunc := func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Println("Recovered from panic in downsync", r)
+				}
+			}()
+
+			for {
+				if swapped := atomic.CompareAndSwapInt32(&killSignal, 1, 1); swapped {
+					return
+				}
+
+				var resp *wsResp
+				resp = new(wsResp)
+				err := c.ReadJSON(resp)
+				if err != nil {
+					//log.Println("downsync reading err", err)
+				}
+	
+				if resp.Act == "RoomDownsyncFrame" {
+					var respPb *wsRespPb
+					respPb = new(wsRespPb)
+					err := c.ReadJSON(respPb)
+					if err != nil {
+						log.Println("Err unmarshalling respPb:", err)
+					}
+					client.decodeProtoBuf(respPb.Data)
+					//client.checkReFindPath() //kobako
+				} else {
+					//handleHbRequirements(resp)
+				}
+			}
+		}
+
+		go upsyncLoopFunc()
+		go downSyncLoopFunc()
 
 	for {
 		select {
@@ -546,8 +574,8 @@ func foolMove(client *Client, step float64) {
 
 func pathFindingMove(client *Client, step float64) {
 	//通过服务器位置进行修正
-  client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)
-  client.pathFinding.Move(step)
+  	//client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)
+  	client.pathFinding.Move(step)
 	client.Player.X = client.pathFinding.CurrentCoord.X
 	client.Player.Y = client.pathFinding.CurrentCoord.Y
 }
