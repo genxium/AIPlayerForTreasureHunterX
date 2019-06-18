@@ -187,7 +187,7 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 				client.controller()
 				client.checkReFindPath()
 				client.upsyncFrameData()
-				time.Sleep(time.Second / 30)
+				time.Sleep(time.Second / 15)
 			}
 		}
 
@@ -232,7 +232,7 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 		elapsedTime := 0
 		for {
 		  elapsedTime = elapsedTime + 1
-		  if elapsedTime > 60 {
+		  if elapsedTime > 65 {
 			atomic.CompareAndSwapInt32(&killSignal, 0, 1)
 			return
 		  }
@@ -496,7 +496,7 @@ func (client *Client) controller() {
 		client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)
 		fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", client.LastRoomDownsyncFrame.Id, len(client.LastRoomDownsyncFrame.Treasures), client.LastRoomDownsyncFrame.RefFrameId)
 	} else {
-		step := 6.0
+		step := 12.0
 
 		pathFindingMove(client, step)
 
@@ -582,6 +582,7 @@ func pathFindingMove(client *Client, step float64) {
 	//fmt.Println("Before: ", client.Player.X, client.Player.Y);
 	client.Player.X = client.pathFinding.CurrentCoord.X
 	client.Player.Y = client.pathFinding.CurrentCoord.Y
+	client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)
 	//fmt.Println("After: ", client.Player.X, client.Player.Y);
 }
 
