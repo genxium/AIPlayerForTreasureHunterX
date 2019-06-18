@@ -867,6 +867,7 @@ func InitCollideMap(world *box2d.B2World, pTmx *TmxMap) astar.Map {
 		}
 
 	}
+	//log.Printf("collideMap %v ", collideMap)
 
 	return astar.AstarArrayToMap(collideMap, pTmx.Width, pTmx.Height)
 }

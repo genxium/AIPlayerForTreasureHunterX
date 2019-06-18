@@ -187,7 +187,7 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 				client.controller()
 				client.checkReFindPath()
 				client.upsyncFrameData()
-				time.Sleep(time.Second / 10)
+				time.Sleep(time.Second / 30)
 			}
 		}
 
@@ -343,12 +343,12 @@ func reFindPath(tmx *models.TmxMap, client *Client) {
         client.pathFinding.UpdateTargetTreasureId(id)
         //client.pathFinding.TargetTreasureId = id
       }
-    }
+	}
 	}
 
 	//fmt.Printf("NEW END POINT %v , NEW TID %d \n", endPoint, client.pathFinding.TargetTreasureId)
 
-
+	fmt.Printf("++++++ start point %v, end point %v\n", startPoint, endPoint)
   pointPath := client.pathFinding.FindPointPath(startPoint, endPoint)
 	fmt.Printf("The point path: %v", pointPath)
 
@@ -486,13 +486,17 @@ func (client *Client) controller() {
 		client.Started = true
 		log.Println("Game Start")
 		client.BattleState = IN_BATTLE
+		client.Player.X = client.LastRoomDownsyncFrame.Players[client.Player.Id].X
+		client.Player.Y = client.LastRoomDownsyncFrame.Players[client.Player.Id].Y
 		//初始化需要寻找的宝物和玩家位置
 		client.InitPlayerCollider()
 		client.initTreasureAndPlayers()
-		fmt.Println("Init coord: ", client.Player.X, client.Player.Y);  
+		fmt.Printf("Init coord: %.2f, %.2f\n", client.Player.X, client.Player.Y);  
+		fmt.Printf("Frame coord: %.2f, %.2f\n", client.LastRoomDownsyncFrame.Players[client.Player.Id].X, client.LastRoomDownsyncFrame.Players[client.Player.Id].Y);  
+		client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)
 		fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", client.LastRoomDownsyncFrame.Id, len(client.LastRoomDownsyncFrame.Treasures), client.LastRoomDownsyncFrame.RefFrameId)
 	} else {
-		step := 16.0
+		step := 6.0
 
 		pathFindingMove(client, step)
 
@@ -574,16 +578,32 @@ func foolMove(client *Client, step float64) {
 func pathFindingMove(client *Client, step float64) {
 	//通过服务器位置进行修正
 	//client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)
-  	client.pathFinding.Move(step)
+	client.pathFinding.Move(step)
+	//fmt.Println("Before: ", client.Player.X, client.Player.Y);
 	client.Player.X = client.pathFinding.CurrentCoord.X
 	client.Player.Y = client.pathFinding.CurrentCoord.Y
+	//fmt.Println("After: ", client.Player.X, client.Player.Y);
 }
 
 //lastPos := Position{};
 
 func (client *Client) upsyncFrameData() {
 	//if(lastPos)
-	//fmt.Println(client.Player.X, client.Player.Y);
+	if client.TmxIns.ContinuousPosMap != nil {
+		var startPoint astar.Point
+		{
+			playerVec := models.Vec2D{
+				X: client.Player.X,
+				Y: client.Player.Y,
+			}
+			temp := client.TmxIns.CoordToPoint(playerVec)
+			startPoint = astar.Point{
+				temp.X,
+				temp.Y,
+			}
+		}
+		fmt.Printf("(%.2f, %2.f), %v\n", client.Player.X, client.Player.Y, startPoint)
+	}
 	if client.BattleState == IN_BATTLE {
 		newFrame := &struct {
 			Id int32   `json:"id"`
