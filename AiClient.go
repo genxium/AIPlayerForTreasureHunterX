@@ -590,6 +590,7 @@ func pathFindingMove(client *Client, step float64) {
 
 func (client *Client) upsyncFrameData() {
 	//if(lastPos)
+	/*
 	if client.TmxIns.ContinuousPosMap != nil {
 		var startPoint astar.Point
 		{
@@ -604,7 +605,7 @@ func (client *Client) upsyncFrameData() {
 			}
 		}
 		fmt.Printf("(%.2f, %2.f), %v\n", client.Player.X, client.Player.Y, startPoint)
-	}
+	}*/
 	if client.BattleState == IN_BATTLE {
 		newFrame := &struct {
 			Id int32   `json:"id"`

@@ -656,7 +656,6 @@ func CreateBarrierBodysInWorld(pTmxMapIns *TmxMap, world *box2d.B2World) {
 		if barrierLayerName == objGroup.Name {
 			//fmt.Printf("objGroup: %v \n", objGroup)
 			for _, obj := range objGroup.Objects {
-				//fmt.Printf("PolyLine: %v \n", obj.Polyline)
 
 				initPos := Vec2D{
 					X: obj.X,
@@ -846,12 +845,9 @@ func InitCollideMap(world *box2d.B2World, pTmx *TmxMap) astar.Map {
 		MoveDynamicBody(playerBody, &newB2Vec2Pos, 0)
 
 		world.Step(uniformTimeStepSeconds, uniformVelocityIterations, uniformPositionIterations)
+		world.Step(uniformTimeStepSeconds, uniformVelocityIterations, uniformPositionIterations)
+		world.Step(uniformTimeStepSeconds, uniformVelocityIterations, uniformPositionIterations)
 
-		/*
-			if(playerBody.collided){
-				collideMap[gid] = 1
-			}
-		*/
 
 		collided := false
 		for edge := playerBody.GetContactList(); edge != nil; edge = edge.Next {
@@ -867,7 +863,7 @@ func InitCollideMap(world *box2d.B2World, pTmx *TmxMap) astar.Map {
 		}
 
 	}
-	//log.Printf("collideMap %v ", collideMap)
+	log.Printf("collideMap %v ", collideMap)
 
 	return astar.AstarArrayToMap(collideMap, pTmx.Width, pTmx.Height)
 }
