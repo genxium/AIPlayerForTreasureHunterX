@@ -101,6 +101,8 @@ type Client struct {
 	//寻路抽象(Incomplete) --kobako
 	pathFinding *models.PathFinding
 	Started bool
+
+	BotSpeed int32
 }
 
 func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager) {
@@ -160,17 +162,8 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 
 	client.Started = false
 	killSignal := int32(0)
+	client.BotSpeed = int32(0)
 
-		/*defer func() {
-			if r := recover(); r != nil {
-				log.Println("Recovered from panic", r)
-			}
-
-      	log.Println("Exiting lifecycle of bot:", botName, " for room:", expectedRoomId)
-			close(done)
-		}()*/
-
-		
 		upsyncLoopFunc := func() {
 			defer func() {
 				if r := recover(); r != nil {
@@ -187,7 +180,7 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 				client.controller()
 				client.checkReFindPath()
 				client.upsyncFrameData()
-				time.Sleep(time.Second / 15)
+				time.Sleep(time.Second / 20)
 			}
 		}
 
@@ -341,7 +334,6 @@ func reFindPath(tmx *models.TmxMap, client *Client) {
 				min = dist
 				endPoint = treasurePoint
         client.pathFinding.UpdateTargetTreasureId(id)
-        //client.pathFinding.TargetTreasureId = id
       }
 	}
 	}
@@ -476,9 +468,6 @@ func (client *Client) checkReFindPath() {
 }
 
 func (client *Client) controller() {
-	/*if client.Player.Speed == 0 {
-		return
-	}*/
 	if client.LastRoomDownsyncFrame == nil {
 		return
 	}
@@ -491,121 +480,26 @@ func (client *Client) controller() {
 		//初始化需要寻找的宝物和玩家位置
 		client.InitPlayerCollider()
 		client.initTreasureAndPlayers()
-		fmt.Printf("Init coord: %.2f, %.2f\n", client.Player.X, client.Player.Y);  
-		fmt.Printf("Frame coord: %.2f, %.2f\n", client.LastRoomDownsyncFrame.Players[client.Player.Id].X, client.LastRoomDownsyncFrame.Players[client.Player.Id].Y);  
+		fmt.Printf("Init coord: %.2f, %.2f\n", client.Player.X, client.Player.Y) 
 		client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)
 		fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", client.LastRoomDownsyncFrame.Id, len(client.LastRoomDownsyncFrame.Treasures), client.LastRoomDownsyncFrame.RefFrameId)
 	} else {
-		step := 12.0
-
+		step := float64(atomic.LoadInt32(&client.BotSpeed)) / 20
 		pathFindingMove(client, step)
-
-		//client :q
-
-		//foolMove(client, step);
-
-		//time.Sleep(time.Duration(int64(40)))
 	}
 
-}
-
-//撞墙转向
-func foolMove(client *Client, step float64) {
-	nowRadian := client.Radian
-
-	for nowRadian-client.Radian < math.Pi*2 {
-		xStep := step * math.Cos(nowRadian)
-		yStep := step * math.Sin(nowRadian)
-		//fmt.Println(xStep, yStep);
-
-		//移动collideBody
-		newB2Vec2Pos := box2d.MakeB2Vec2(client.Player.X+xStep, client.Player.Y-yStep)
-		//newB2Vec2Pos := box2d.MakeB2Vec2(client.Player.X, client.Player.Y - yStep);
-		models.MoveDynamicBody(client.PlayerCollidableBody, &newB2Vec2Pos, 0)
-
-		//world.Step
-		client.CollidableWorld.Step(uniformTimeStepSeconds, uniformVelocityIterations, uniformPositionIterations)
-
-		//碰撞检测
-		collided := false
-		for edge := client.PlayerCollidableBody.GetContactList(); edge != nil; edge = edge.Next {
-			if edge.Contact.IsTouching() {
-				collided = true
-				break
-				//log.Println("player conteact")
-				if _, ok := edge.Other.GetUserData().(*models.Barrier); ok {
-					//log.Println("player conteact to the barrier")
-				}
-			}
-		}
-
-		if !collided { //一直走
-			client.Player.X = client.Player.X + xStep
-			client.Player.Y = client.Player.Y - yStep
-
-			//kobako
-			//TODO: set correct direction
-			dx, dy := func() (dx float64, dy float64) {
-				floorRadian := nowRadian - math.Pi*2*math.Floor(nowRadian/(2*math.Pi))
-				//fmt.Println(floorRadian);
-				if floorRadian < math.Pi/2 {
-					return 2, -1
-				} else if floorRadian < math.Pi {
-					return -2, -1
-				} else if floorRadian < math.Pi*3/2 {
-					return -2, 1
-				} else {
-					return 2, 1
-				}
-			}()
-			client.Dir = models.Direction{
-				Dx: dx,
-				Dy: dy,
-			}
-			//fmt.Println(dx, dy)
-			//kobako
-			break
-		} else { //转向
-			log.Println("player collided with barriers & change direction: ", nowRadian)
-			nowRadian = nowRadian + math.Pi/16
-
-		}
-	}
-
-	client.Radian = nowRadian
 }
 
 func pathFindingMove(client *Client, step float64) {
-	//通过服务器位置进行修正
-	//client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)
 	client.pathFinding.Move(step)
-	//fmt.Println("Before: ", client.Player.X, client.Player.Y);
 	client.Player.X = client.pathFinding.CurrentCoord.X
 	client.Player.Y = client.pathFinding.CurrentCoord.Y
 	client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)
-	//fmt.Println("After: ", client.Player.X, client.Player.Y);
 }
 
 //lastPos := Position{};
 
 func (client *Client) upsyncFrameData() {
-	//if(lastPos)
-	/*
-	if client.TmxIns.ContinuousPosMap != nil {
-		var startPoint astar.Point
-		{
-			playerVec := models.Vec2D{
-				X: client.Player.X,
-				Y: client.Player.Y,
-			}
-			temp := client.TmxIns.CoordToPoint(playerVec)
-			startPoint = astar.Point{
-				temp.X,
-				temp.Y,
-			}
-		}
-		fmt.Printf("(%.2f, %2.f), %v\n", client.Player.X, client.Player.Y, startPoint)
-	}*/
 	if client.BattleState == IN_BATTLE {
 		newFrame := &struct {
 			Id int32   `json:"id"`
@@ -638,37 +532,16 @@ func (client *Client) upsyncFrameData() {
 
 //kobako: 从下行帧解析宝物信息是否减少
 func (client *Client) decodeProtoBuf(message []byte) {
-  //log.Println("About to decode message into models.RoomDownsyncFrame:", message)
 	room_downsync_frame := models.RoomDownsyncFrame{}
 	err := proto.Unmarshal(message, &room_downsync_frame)
 	if err != nil {
     fmt.Println("解析room_downsync_frame出错了!");
 		log.Fatal(err)
 	}else{
-    //解析room_downsync_frame成功
-    //fmt.Println("解析room_downsync_frame成功");
-  }
 
-  //fmt.Println(room_downsync_frame.Players);
-  //fmt.Println(client.Player.Id);
-
-	//fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", room_downsync_frame.Id, len(room_downsync_frame.Treasures), room_downsync_frame.RefFrameId)
-
-	//根据最新一帧的信息设置bot玩家的新位置及方向等
+  	}
 	client.LastRoomDownsyncFrame = &room_downsync_frame
-	//client.Player.Speed = room_downsync_frame.Players[int32(client.Player.Id)].Speed
-	//client.Player.Dir = room_downsync_frame.Players[int32(client.Player.Id)].Dir
-	//client.Player.X = room_downsync_frame.Players[int32(client.Player.Id)].X
-	//client.Player.Y = room_downsync_frame.Players[int32(client.Player.Id)].Y
-
-	//fmt.Printf("Treasures length: %d \n", len(room_downsync_frame.Treasures))
-	//fmt.Printf("room_downsync_frame: Id: %d, RefFrameId: %d, Treasures: %v \n", room_downsync_frame.Id, room_downsync_frame.RefFrameId, room_downsync_frame.Treasures)
-	/*
-	  for k, v := range room_downsync_frame.Treasures{
-	    //fmt.Printf("ID: %d, X: %d, Y: %d || ", v.Id, v.Removed, v.X, v.Y)
-	    fmt.Printf("k: %d, v: %v || ", k, v)
-	  }
-	*/
+	atomic.StoreInt32(&client.BotSpeed, room_downsync_frame.Players[int32(client.Player.Id)].Speed)
 
 }
 
