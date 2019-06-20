@@ -484,7 +484,7 @@ func (client *Client) controller() {
 		client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)
 		fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", client.LastRoomDownsyncFrame.Id, len(client.LastRoomDownsyncFrame.Treasures), client.LastRoomDownsyncFrame.RefFrameId)
 	} else {
-		step := float64(atomic.LoadInt32(client.BotSpeed)) / 20 * 0.7
+		step := float64(atomic.LoadInt32(client.BotSpeed)) / 20
 		pathFindingMove(client, step)
 	}
 
