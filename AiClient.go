@@ -299,7 +299,7 @@ func startServer(port int) {
 }
 
 //通过当前玩家的坐标, 和treasureMap来计算start, end point, 用于寻路, 重新初始化walkInfo
-func reFindPath(tmx *models.TmxMap, client *Client) {
+func reFindPath(tmx *models.TmxMap, client *Client, excludeTreasureID map[int32]bool) {
 	var startPoint astar.Point
 	{
 		playerVec := models.Vec2D{
@@ -329,8 +329,14 @@ func reFindPath(tmx *models.TmxMap, client *Client) {
       dist := astar.DistBetween(astar.Point{
         X: playerPoint.X,
         Y: playerPoint.Y,
-      }, treasurePoint)
-      if dist < min {
+	  }, treasurePoint)
+	  notInExcluedMap := true
+	  if excludeTreasureID != nil {
+	  	if _, ok := excludeTreasureID[id]; ok {
+			notInExcluedMap = false
+	  	}
+	  }
+	  if dist < min && notInExcluedMap {
 				min = dist
 				endPoint = treasurePoint
         client.pathFinding.UpdateTargetTreasureId(id)
@@ -438,7 +444,7 @@ func (client *Client) initTreasureAndPlayers() {
 
 	fmt.Printf("++++++ minDistance %f, %v \n", minDistance, playerPoint)
 
-	reFindPath(tmx, client)
+	reFindPath(tmx, client, nil)
 }
 
 func (client *Client) checkReFindPath() {
@@ -460,7 +466,14 @@ func (client *Client) checkReFindPath() {
 		}
 
 		if needReFindPath {
-			reFindPath(client.TmxIns, client)
+			reFindPath(client.TmxIns, client, nil)
+			retryCount := 0
+			excludeTreasureID := make(map[int32]bool, 10)
+			for retryCount < 5 && client.pathFinding.NextGoalIndex == -1 {
+				retryCount = retryCount + 1
+				excludeTreasureID[client.pathFinding.TargetTreasureId] = true
+				reFindPath(client.TmxIns, client, excludeTreasureID)
+			}
 		}
 	} else {
 		//Do nothing
