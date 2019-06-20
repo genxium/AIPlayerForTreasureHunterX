@@ -102,7 +102,7 @@ type Client struct {
 	pathFinding *models.PathFinding
 	Started bool
 
-	BotSpeed int32
+	BotSpeed *int32
 }
 
 func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager) {
@@ -162,7 +162,7 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 
 	client.Started = false
 	killSignal := int32(0)
-	client.BotSpeed = int32(0)
+	client.BotSpeed = new(int32)
 
 		upsyncLoopFunc := func() {
 			defer func() {
@@ -484,7 +484,7 @@ func (client *Client) controller() {
 		client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)
 		fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", client.LastRoomDownsyncFrame.Id, len(client.LastRoomDownsyncFrame.Treasures), client.LastRoomDownsyncFrame.RefFrameId)
 	} else {
-		step := float64(atomic.LoadInt32(&client.BotSpeed)) / 20
+		step := float64(atomic.LoadInt32(client.BotSpeed)) / 20 * 0.7
 		pathFindingMove(client, step)
 	}
 
@@ -541,7 +541,7 @@ func (client *Client) decodeProtoBuf(message []byte) {
 
   	}
 	client.LastRoomDownsyncFrame = &room_downsync_frame
-	atomic.StoreInt32(&client.BotSpeed, room_downsync_frame.Players[int32(client.Player.Id)].Speed)
+	atomic.StoreInt32(client.BotSpeed, room_downsync_frame.Players[int32(client.Player.Id)].Speed)
 
 }
 

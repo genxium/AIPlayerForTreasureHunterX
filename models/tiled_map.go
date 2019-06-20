@@ -798,7 +798,7 @@ func MockPlayerBody(world *box2d.B2World) *box2d.B2Body {
 	b2PlayerBody := world.CreateBody(&bdDef)
 
 	b2CircleShape := box2d.MakeB2CircleShape()
-	b2CircleShape.M_radius = 20 // Matching that of client-side setting.
+	b2CircleShape.M_radius = 12 // Matching that of client-side setting.
 
 	fd := box2d.MakeB2FixtureDef()
 	fd.Shape = &b2CircleShape
