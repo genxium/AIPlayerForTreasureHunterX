@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	collision2d "github.com/Tarliton/collision2d"
 )
 
 const (
@@ -736,6 +737,107 @@ func CreateBarrierBodysInWorld(pTmxMapIns *TmxMap, world *box2d.B2World) {
 	}
 }
 
+func ComputeColliderMapByCollision2d(pTmxMapIns *TmxMap) []int {
+	var barrierLayerName string = "barrier"
+
+	for _, objGroup := range pTmxMapIns.ObjectGroups {
+
+		//fmt.Printf("objGroupName: %v \n", objGroup.Name)
+
+		if barrierLayerName == objGroup.Name {
+			//fmt.Printf("objGroup: %v \n", objGroup)
+			barrierList := make([]collision2d.Polygon, len(objGroup.Objects))
+			barrierCounter := 0
+			for _, obj := range objGroup.Objects {
+
+				initPos := Vec2D{
+					X: obj.X,
+					Y: obj.Y,
+				}
+
+				//Init Polygon body
+				singleValueArray := strings.Split(obj.Polyline.Points, " ")
+				pointsArrayWrtInit := make([]Vec2D, len(singleValueArray))
+				
+
+				for key, value := range singleValueArray {
+					for k, v := range strings.Split(value, ",") {
+						n, err := strconv.ParseFloat(v, 64)
+						if err != nil {
+							fmt.Printf("ERRRRRRRRRR!!!!!!!! parse float %f \n" + value)
+							panic(err)
+							//return err
+						}
+						if k%2 == 0 {
+							pointsArrayWrtInit[key].X = n + initPos.X
+						} else {
+							pointsArrayWrtInit[key].Y = n + initPos.Y
+						}
+					}
+				}
+
+				//fmt.Printf("PointsArrayWrtInit: %v \n", pointsArrayWrtInit)
+
+				pointsArrayTransted := make([]*Vec2D, len(pointsArrayWrtInit))
+				pointList := make([]float64, len(singleValueArray) * 2)
+				{
+					var scale float64 = 1.0
+					for key, value := range pointsArrayWrtInit {
+
+						vec := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&Vec2D{
+							X: value.X * scale,
+							Y: value.Y * scale,
+						})
+						pointsArrayTransted[key] = &vec
+						pointList[2 * key] = vec.X
+						pointList[2 * key + 1] = vec.Y
+
+						//fmt.Printf("PointsArrayTransted: %v \n", vec)
+					}
+				}
+
+				{
+					//CreateBody
+					pos := collision2d.NewVector(0.0, 0.0)
+    				offset := collision2d.NewVector(0.0, 0.0)
+    				angle := 0.0
+					polygon := collision2d.NewPolygon(pos, offset, angle, pointList[:])
+
+					barrierList[barrierCounter] = polygon
+					barrierCounter++
+					//log.Printf("barrier %v: %v \n", barrierCounter, polygon.Points)
+				}
+			}
+
+			width := pTmxMapIns.Width
+			height := pTmxMapIns.Height
+
+			collideMap := make([]int, width*height)
+
+			playerCircle := collision2d.Circle{collision2d.Vector{0, 0}, 15}
+
+			for k, _ := range collideMap {
+				x, y := pTmxMapIns.GetCoordByGid(k)
+
+				playerCircle.Pos = collision2d.NewVector(x, y)
+
+				for _, barrier := range barrierList {
+					result, _ := collision2d.TestPolygonCircle(barrier, playerCircle)
+					if result {
+						collideMap[k] = 1
+						break
+					}
+				}
+			}
+
+			log.Printf("collideMap %v ", collideMap)
+			return collideMap
+		}
+	}
+
+	return nil
+}
+
 //根据tmx路径初始化TmxMap以及Tsx(TODO: Tsx路径现在是hardcode的)
 func InitMapStaticResource(relativePath string) (TmxMap, Tsx) {
 	execPath, err := os.Executable()
@@ -863,7 +965,7 @@ func InitCollideMap(world *box2d.B2World, pTmx *TmxMap) astar.Map {
 		}
 
 	}
-	log.Printf("collideMap %v ", collideMap)
+	//log.Printf("collideMap %v ", collideMap)
 
-	return astar.AstarArrayToMap(collideMap, pTmx.Width, pTmx.Height)
+	return astar.AstarArrayToMap(ComputeColliderMapByCollision2d(pTmx), pTmx.Width, pTmx.Height)
 }
