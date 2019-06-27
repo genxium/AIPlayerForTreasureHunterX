@@ -721,7 +721,7 @@ func ComputeColliderMapByCollision2d(pTmxMapIns *TmxMap) []int {
 
 			collideMap := make([]int, width*height)
 
-			playerCircle := collision2d.Circle{collision2d.Vector{0, 0}, 15}
+			playerCircle := collision2d.Circle{collision2d.Vector{0, 0}, 12}
 
 			for k, _ := range collideMap {
 				x, y := pTmxMapIns.GetCoordByGid(k)
