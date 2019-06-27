@@ -150,13 +150,6 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 	tmx, _ := models.InitMapStaticResource("./map/map/pacman/map.tmx")
 	client.TmxIns = &tmx
 
-	gravity := box2d.MakeB2Vec2(0.0, 0.0)
-	world := box2d.MakeB2World(gravity)
-
-	client.CollidableWorld = &world
-
-	models.CreateBarrierBodysInWorld(&tmx, &world)
-
 	collideMap := models.InitCollideMap(tmx.World, &tmx)
 	client.pathFinding.SetCollideMap(collideMap)
 
@@ -491,7 +484,6 @@ func (client *Client) controller() {
 		client.Player.X = client.LastRoomDownsyncFrame.Players[client.Player.Id].X
 		client.Player.Y = client.LastRoomDownsyncFrame.Players[client.Player.Id].Y
 		//初始化需要寻找的宝物和玩家位置
-		client.InitPlayerCollider()
 		client.initTreasureAndPlayers()
 		fmt.Printf("Init coord: %.2f, %.2f\n", client.Player.X, client.Player.Y) 
 		client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)
@@ -595,9 +587,6 @@ func (client *Client) initMapStaticResource() models.TmxMap {
 	ErrFatal(err)
 	models.DeserializeToTsxIns(byteArr, pTsxIns)
 
-
-	client.InitBarrier(pTmxMapIns, pTsxIns)
-
 	//kobako
 
 	fmt.Println("Barrier")
@@ -606,122 +595,6 @@ func (client *Client) initMapStaticResource() models.TmxMap {
 	//kobako
 
 	return tmxMapIns
-}
-
-func (client *Client) InitPlayerCollider() {
-	log.Println("InitPlayerCollider for client.Players:", zap.Any("roomId", client.Id))
-	player := client.Player
-	var bdDef box2d.B2BodyDef
-	colliderOffset := box2d.MakeB2Vec2(0, 0) // Matching that of client-side setting.
-	bdDef = box2d.MakeB2BodyDef()
-	bdDef.Type = box2d.B2BodyType.B2_dynamicBody
-	bdDef.Position.Set(player.X+colliderOffset.X, player.Y+colliderOffset.Y)
-
-	b2PlayerBody := client.CollidableWorld.CreateBody(&bdDef)
-
-	b2CircleShape := box2d.MakeB2CircleShape()
-	b2CircleShape.M_radius = 32 // Matching that of client-side setting.
-
-	fd := box2d.MakeB2FixtureDef()
-	fd.Shape = &b2CircleShape
-
-	//fd.Filter.CategoryBits = COLLISION_CATEGORY_CONTROLLED_PLAYER
-	//fd.Filter.MaskBits = COLLISION_MASK_FOR_CONTROLLED_PLAYER
-	//mark
-	fd.Filter.CategoryBits = 1
-	fd.Filter.MaskBits = 2
-
-	fd.Density = 0.0
-	b2PlayerBody.CreateFixtureFromDef(&fd)
-
-	client.PlayerCollidableBody = b2PlayerBody
-
-	log.Println("Player:")
-	log.Println(b2PlayerBody)
-
-	b2PlayerBody.SetUserData(player)
-	models.PrettyPrintBody(client.PlayerCollidableBody)
-}
-
-func (client *Client) InitBarrier(pTmxMapIns *models.TmxMap, pTsxIns *models.Tsx) {
-	gravity := box2d.MakeB2Vec2(0.0, 0.0)
-	world := box2d.MakeB2World(gravity)
-	world.SetContactFilter(&box2d.B2ContactFilter{})
-	client.CollidableWorld = &world
-	for _, lay := range pTmxMapIns.Layers {
-		if lay.Name != "tile_1 human skeleton" && lay.Name != "tile_1 board" && lay.Name != "tile_1 stone" {
-			continue
-		}
-		fmt.Println("InitBarrier:")
-		fmt.Println(lay.Name, len(lay.Tile))
-		counter := 0
-		for index, tile := range lay.Tile {
-			counter = counter + 1
-			if counter > 20 {
-				break
-			}
-
-			fmt.Printf("tile: %v \n", tile)
-			if tile == nil || tile.Tileset == nil {
-				continue
-			}
-			if tile.Tileset.Source != "tile_1.tsx" {
-				continue
-			}
-
-			barrier := &models.Barrier{}
-			barrier.X, barrier.Y = pTmxMapIns.GetCoordByGid(index)
-			barrier.Type = tile.Id
-			if v, ok := pTsxIns.BarrierPolyLineList[int(tile.Id)]; ok {
-				thePoints := make([]*models.Vec2D, 0)
-				for _, p := range v.Points {
-					thePoints = append(thePoints, &models.Vec2D{
-						X: p.X,
-						Y: p.Y,
-					})
-				}
-				barrier.Boundary = &models.Polygon2D{Points: thePoints}
-			}
-
-			var bdDef box2d.B2BodyDef
-			bdDef = box2d.MakeB2BodyDef()
-			bdDef.Type = box2d.B2BodyType.B2_staticBody
-			bdDef.Position.Set(barrier.X, barrier.Y) // todo ？？？？？
-			b2EmelementBody := client.CollidableWorld.CreateBody(&bdDef)
-
-			fd := box2d.MakeB2FixtureDef()
-			if barrier.Boundary != nil {
-				b2Vertices := make([]box2d.B2Vec2, len(barrier.Boundary.Points))
-				for vIndex, v2 := range barrier.Boundary.Points {
-					b2Vertices[vIndex] = v2.ToB2Vec2()
-				}
-				b2PolygonShape := box2d.MakeB2PolygonShape()
-				b2PolygonShape.Set(b2Vertices, len(barrier.Boundary.Points))
-				fd.Shape = &b2PolygonShape
-				fd.Filter.CategoryBits = COLLISION_CATEGORY_BARRIER
-				fd.Filter.MaskBits = COLLISION_MASK_FOR_BARRIER
-				fd.Density = 0.0
-			} else {
-				b2CircleShape := box2d.MakeB2CircleShape()
-				b2CircleShape.M_radius = 32
-				fd.Shape = &b2CircleShape
-				fd.Filter.CategoryBits = COLLISION_CATEGORY_CONTROLLED_PLAYER
-				fd.Filter.MaskBits = COLLISION_MASK_FOR_CONTROLLED_PLAYER
-				fd.Density = 0.0
-			}
-
-			//mark
-			fd.Filter.CategoryBits = 2
-			fd.Filter.MaskBits = 1
-
-			b2EmelementBody.CreateFixtureFromDef(&fd)
-
-			barrier.CollidableBody = b2EmelementBody
-			b2EmelementBody.SetUserData(barrier)
-			client.Barrier[int32(index)] = barrier
-		}
-		fmt.Println(client.Barrier)
-	}
 }
 
 func ErrFatal(err error) {
