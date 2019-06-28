@@ -457,11 +457,23 @@ func (client *Client) checkReFindPath() {
 				needReFindPath = true
 			}
 		}
+		
+		var excludeTreasureID map[int32]bool
+		// 防止server漏判吃草导致挂机
+		if !needReFindPath && atomic.LoadInt32(client.BotSpeed) > 0 && 
+				client.pathFinding.NextGoalIndex >= len(client.pathFinding.CoordPath) {
+				excludeTreasureID := make(map[int32]bool, 10)
+				needReFindPath = true
+				excludeTreasureID[client.pathFinding.TargetTreasureId] = true
+			}
+			//p.NextGoalIndex >= len(p.CoordPath)
 
 		if needReFindPath {
 			reFindPath(client.TmxIns, client, nil)
 			retryCount := 0
-			excludeTreasureID := make(map[int32]bool, 10)
+			if excludeTreasureID == nil {
+				excludeTreasureID = make(map[int32]bool, 10)
+			}
 			for retryCount < 5 && client.pathFinding.NextGoalIndex == -1 {
 				retryCount = retryCount + 1
 				excludeTreasureID[client.pathFinding.TargetTreasureId] = true
