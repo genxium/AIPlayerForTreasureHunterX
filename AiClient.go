@@ -5,10 +5,9 @@ import (
 	"AI/constants"
 	"AI/login"
 	"AI/models"
+	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"syscall"
 	"github.com/ByteArena/box2d"
 	"github.com/gin-gonic/gin"
 	"github.com/golang/protobuf/proto"
@@ -17,15 +16,16 @@ import (
 	"io/ioutil"
 	"log"
 	"math"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
-	"time"
-	"context"
-	"sync/atomic"
 	"runtime/debug"
+	"strconv"
+	"sync/atomic"
+	"syscall"
+	"time"
 )
 
 const (
@@ -92,15 +92,15 @@ type Client struct {
 	Radian float64
 	Dir    models.Direction
 
-	TmxIns               *models.TmxMap
+	TmxIns *models.TmxMap
 
-  //上一帧时宝物的数量(因为现在每当一个宝物被吃掉时, 后端downFrame.Treasures会带上它的信息,保存该参数用于判断有没有宝物被吃掉)
-	RemovedTreasuresNum  int
+	//上一帧时宝物的数量(因为现在每当一个宝物被吃掉时, 后端downFrame.Treasures会带上它的信息,保存该参数用于判断有没有宝物被吃掉)
+	RemovedTreasuresNum         int
 	LastFrameRemovedTreasureNum int
 
 	//寻路抽象(Incomplete) --kobako
 	pathFinding *models.PathFinding
-	Started bool
+	Started     bool
 
 	BotSpeed *int32
 }
@@ -126,12 +126,12 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 	}
 	u.RawQuery = q.Encode()
 
-  fmt.Println("WS connect to " + u.String())
+	fmt.Println("WS connect to " + u.String())
 
 	//ref to the NewClient and DefaultDialer.Dial https://github.com/gorilla/websocket/issues/54
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		log.Fatal("dial:", err)
+		log.Panic("dial:", err)
 	}
 	defer c.Close()
 
@@ -157,73 +157,73 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 	killSignal := int32(0)
 	client.BotSpeed = new(int32)
 
-		upsyncLoopFunc := func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Println("Recovered from panic in upsync", r)
-					fmt.Printf("panic in upsync: %v \n", string(debug.Stack()))
-				}
-			}()
-
-			for {
-				if swapped := atomic.CompareAndSwapInt32(&killSignal, 1, 1); swapped {
-					log.Println("Upsync exit")
-					return
-				}
-				client.controller()
-				client.checkReFindPath()
-				client.upsyncFrameData()
-				time.Sleep(time.Second / 20)
+	upsyncLoopFunc := func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Println("Recovered from panic in upsync", r)
+				fmt.Printf("panic in upsync: %v \n", string(debug.Stack()))
 			}
-		}
+		}()
 
-		downSyncLoopFunc := func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Println("Recovered from panic in downsync", r)
-				}
-			}()
-
-			for {
-				if swapped := atomic.CompareAndSwapInt32(&killSignal, 1, 1); swapped {
-					log.Println("Downsync exit")
-					return
-				}
-
-				var resp *wsResp
-				resp = new(wsResp)
-				err := c.ReadJSON(resp)
-				if err != nil {
-					//log.Println("downsync reading err", err)
-				}
-	
-				if resp.Act == "RoomDownsyncFrame" {
-					var respPb *wsRespPb
-					respPb = new(wsRespPb)
-					err := c.ReadJSON(respPb)
-					if err != nil {
-						log.Println("Err unmarshalling respPb:", err)
-					}
-					client.decodeProtoBuf(respPb.Data)
-					//client.checkReFindPath() //kobako
-				} else {
-					//handleHbRequirements(resp)
-				}
-			}
-		}
-
-		go upsyncLoopFunc()
-		go downSyncLoopFunc()
-
-		elapsedTime := 0
 		for {
-		  elapsedTime = elapsedTime + 1
-		  if elapsedTime > 65 {
+			if swapped := atomic.CompareAndSwapInt32(&killSignal, 1, 1); swapped {
+				log.Println("Upsync exit")
+				return
+			}
+			client.controller()
+			client.checkReFindPath()
+			client.upsyncFrameData()
+			time.Sleep(time.Second / 20)
+		}
+	}
+
+	downSyncLoopFunc := func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Println("Recovered from panic in downsync", r)
+			}
+		}()
+
+		for {
+			if swapped := atomic.CompareAndSwapInt32(&killSignal, 1, 1); swapped {
+				log.Println("Downsync exit")
+				return
+			}
+
+			var resp *wsResp
+			resp = new(wsResp)
+			err := c.ReadJSON(resp)
+			if err != nil {
+				//log.Println("downsync reading err", err)
+			}
+
+			if resp.Act == "RoomDownsyncFrame" {
+				var respPb *wsRespPb
+				respPb = new(wsRespPb)
+				err := c.ReadJSON(respPb)
+				if err != nil {
+					log.Println("Err unmarshalling respPb:", err)
+				}
+				client.decodeProtoBuf(respPb.Data)
+				//client.checkReFindPath() //kobako
+			} else {
+				//handleHbRequirements(resp)
+			}
+		}
+	}
+
+	go upsyncLoopFunc()
+	go downSyncLoopFunc()
+
+	elapsedTime := 0
+	for {
+		elapsedTime = elapsedTime + 1
+		if elapsedTime > 65 {
 			atomic.CompareAndSwapInt32(&killSignal, 0, 1)
 			return
-		  }
-		  time.Sleep(time.Second)
 		}
+		time.Sleep(time.Second)
+	}
 }
 
 func main() {
@@ -238,32 +238,32 @@ func startServer(port int) {
 	}
 
 	r := gin.Default()
-  r.GET("/spawnBot", func(c *gin.Context) {
-    expectedRoomId, err := strconv.Atoi(c.Query("expectedRoomId"))
-    if err != nil {
-      fmt.Println("请求中没有或者转换expectedRoomId出错")
-      c.JSON(200, gin.H{
-        "ret": 1001,
-        "err": "请求中没有或者转换expectedRoomId出错",
-      })
-    } else {
-      botName, err := botManager.GetLeisureBot()
-      if err != nil {
-        fmt.Println("获取空闲bot出错: " + err.Error())
-        c.JSON(200, gin.H{
-          "ret":     1001,
-          "botName": "获取空闲bot出错: " + err.Error(),
-        })
-      } else {
-        go spawnBot(botName, expectedRoomId, botManager)
-        fmt.Printf("Get bot: %s, expectedRoomId: %d \n", botName, expectedRoomId)
-        c.JSON(200, gin.H{
-          "ret":     1000,
-          "botName": botName,
-        })
-      }
-    }
-  })
+	r.GET("/spawnBot", func(c *gin.Context) {
+		expectedRoomId, err := strconv.Atoi(c.Query("expectedRoomId"))
+		if err != nil {
+			fmt.Println("请求中没有或者转换expectedRoomId出错")
+			c.JSON(200, gin.H{
+				"ret": 1001,
+				"err": "请求中没有或者转换expectedRoomId出错",
+			})
+		} else {
+			botName, err := botManager.GetLeisureBot()
+			if err != nil {
+				fmt.Println("获取空闲bot出错: " + err.Error())
+				c.JSON(200, gin.H{
+					"ret":     1001,
+					"botName": "获取空闲bot出错: " + err.Error(),
+				})
+			} else {
+				go spawnBot(botName, expectedRoomId, botManager)
+				fmt.Printf("Get bot: %s, expectedRoomId: %d \n", botName, expectedRoomId)
+				c.JSON(200, gin.H{
+					"ret":     1000,
+					"botName": botName,
+				})
+			}
+		}
+	})
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
@@ -285,7 +285,7 @@ func startServer(port int) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-	  log.Println("Server Shutdown:", zap.Error(err))
+		log.Println("Server Shutdown:", zap.Error(err))
 	}
 	log.Println("Server exiting")
 	os.Exit(0)
@@ -307,40 +307,40 @@ func reFindPath(tmx *models.TmxMap, client *Client, excludeTreasureID map[int32]
 	}
 
 	var endPoint astar.Point
-  {
+	{
 		var min float64 = 999999
 		playerVec := models.Vec2D{
 			X: client.Player.X,
 			Y: client.Player.Y,
 		}
-    playerPoint := tmx.CoordToPoint(playerVec)
-    for id, v := range client.pathFinding.TreasureMap {
-      treasurePoint := astar.Point{
-			  X: v.X,
-			  Y: v.Y,
-		  }
-      dist := astar.DistBetween(astar.Point{
-        X: playerPoint.X,
-        Y: playerPoint.Y,
-	  }, treasurePoint)
-	  notInExcluedMap := true
-	  if excludeTreasureID != nil {
-	  	if _, ok := excludeTreasureID[id]; ok {
-			notInExcluedMap = false
-	  	}
-	  }
-	  if dist < min && notInExcluedMap {
+		playerPoint := tmx.CoordToPoint(playerVec)
+		for id, v := range client.pathFinding.TreasureMap {
+			treasurePoint := astar.Point{
+				X: v.X,
+				Y: v.Y,
+			}
+			dist := astar.DistBetween(astar.Point{
+				X: playerPoint.X,
+				Y: playerPoint.Y,
+			}, treasurePoint)
+			notInExcluedMap := true
+			if excludeTreasureID != nil {
+				if _, ok := excludeTreasureID[id]; ok {
+					notInExcluedMap = false
+				}
+			}
+			if dist < min && notInExcluedMap {
 				min = dist
 				endPoint = treasurePoint
-        client.pathFinding.UpdateTargetTreasureId(id)
-      }
-	}
+				client.pathFinding.UpdateTargetTreasureId(id)
+			}
+		}
 	}
 
 	//fmt.Printf("NEW END POINT %v , NEW TID %d \n", endPoint, client.pathFinding.TargetTreasureId)
 
 	fmt.Printf("++++++ start point %v, end point %v\n", startPoint, endPoint)
-  pointPath := client.pathFinding.FindPointPath(startPoint, endPoint)
+	pointPath := client.pathFinding.FindPointPath(startPoint, endPoint)
 	fmt.Printf("The point path: %v", pointPath)
 
 	//将离散的路径转为连续坐标, 初始化walkInfo, 每次controller的时候调用
@@ -353,7 +353,7 @@ func reFindPath(tmx *models.TmxMap, client *Client, excludeTreasureID map[int32]
 			Y: y,
 		})
 	}
-  client.pathFinding.SetNewCoordPath(path)
+	client.pathFinding.SetNewCoordPath(path)
 }
 
 func (client *Client) initTreasureAndPlayers() {
@@ -398,7 +398,7 @@ func (client *Client) initTreasureAndPlayers() {
 			treasureDiscreteMap[id] = discretePoint
 		}
 	}
-  client.pathFinding.SetTreasureMap(treasureDiscreteMap)
+	client.pathFinding.SetTreasureMap(treasureDiscreteMap)
 	//client.pathFinding.TreasureMap = treasureDiscreteMap
 
 	fmt.Printf("INIT Treasure: %v \n", client.pathFinding.TreasureMap)
@@ -430,7 +430,7 @@ func (client *Client) initTreasureAndPlayers() {
 		dist := astar.DistBetween(vPoint, playerPoint)
 		if dist < minDistance {
 			minDistance = dist
-      client.pathFinding.UpdateTargetTreasureId(k)
+			client.pathFinding.UpdateTargetTreasureId(k)
 			//client.pathFinding.TargetTreasureId = k
 		}
 	}
@@ -451,22 +451,22 @@ func (client *Client) checkReFindPath() {
 
 		var needReFindPath bool
 		for id, _ := range client.LastRoomDownsyncFrame.Treasures {
-      //删除以减轻后续最短距离计算量
+			//删除以减轻后续最短距离计算量
 			delete(client.pathFinding.TreasureMap, id)
 			if id == client.pathFinding.TargetTreasureId {
 				needReFindPath = true
 			}
 		}
-		
+
 		var excludeTreasureID map[int32]bool
 		// 防止server漏判吃草导致挂机
-		if !needReFindPath && atomic.LoadInt32(client.BotSpeed) > 0 && 
-				client.pathFinding.NextGoalIndex >= len(client.pathFinding.CoordPath) {
-				excludeTreasureID := make(map[int32]bool, 10)
-				needReFindPath = true
-				excludeTreasureID[client.pathFinding.TargetTreasureId] = true
-			}
-			//p.NextGoalIndex >= len(p.CoordPath)
+		if !needReFindPath && atomic.LoadInt32(client.BotSpeed) > 0 &&
+			client.pathFinding.NextGoalIndex >= len(client.pathFinding.CoordPath) {
+			excludeTreasureID := make(map[int32]bool, 10)
+			needReFindPath = true
+			excludeTreasureID[client.pathFinding.TargetTreasureId] = true
+		}
+		//p.NextGoalIndex >= len(p.CoordPath)
 
 		if needReFindPath {
 			reFindPath(client.TmxIns, client, nil)
@@ -497,7 +497,7 @@ func (client *Client) controller() {
 		client.Player.Y = client.LastRoomDownsyncFrame.Players[client.Player.Id].Y
 		//初始化需要寻找的宝物和玩家位置
 		client.initTreasureAndPlayers()
-		fmt.Printf("Init coord: %.2f, %.2f\n", client.Player.X, client.Player.Y) 
+		fmt.Printf("Init coord: %.2f, %.2f\n", client.Player.X, client.Player.Y)
 		client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)
 		fmt.Printf("Receive id: %d, treasure length %d, refId: %d \n", client.LastRoomDownsyncFrame.Id, len(client.LastRoomDownsyncFrame.Treasures), client.LastRoomDownsyncFrame.RefFrameId)
 	} else {
@@ -519,11 +519,11 @@ func pathFindingMove(client *Client, step float64) {
 func (client *Client) upsyncFrameData() {
 	if client.BattleState == IN_BATTLE {
 		newFrame := &struct {
-			Id int32   `json:"id"`
-			X  float64 `json:"x"`
-			Y  float64 `json:"y"`
+			Id            int32            `json:"id"`
+			X             float64          `json:"x"`
+			Y             float64          `json:"y"`
 			Dir           models.Direction `json:"dir"`
-			AckingFrameId int32     `json:"AckingFrameId"`
+			AckingFrameId int32            `json:"AckingFrameId"`
 		}{client.Player.Id, client.Player.X, client.Player.Y, models.Direction{}, client.LastRoomDownsyncFrame.Id}
 
 		//fmt.Println(newFrame.AckingFrameId)
@@ -552,11 +552,11 @@ func (client *Client) decodeProtoBuf(message []byte) {
 	room_downsync_frame := models.RoomDownsyncFrame{}
 	err := proto.Unmarshal(message, &room_downsync_frame)
 	if err != nil {
-    fmt.Println("解析room_downsync_frame出错了!");
-		log.Fatal(err)
-	}else{
+		fmt.Println("解析room_downsync_frame出错了!")
+		log.Panic(err)
+	} else {
 
-  	}
+	}
 	client.LastRoomDownsyncFrame = &room_downsync_frame
 	atomic.StoreInt32(client.BotSpeed, room_downsync_frame.Players[int32(client.Player.Id)].Speed)
 
