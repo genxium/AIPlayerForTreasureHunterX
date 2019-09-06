@@ -5,6 +5,7 @@ import (
 	"AI/constants"
 	"AI/login"
 	"AI/models"
+	pb "AI/pb_output"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,14 +14,12 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
-	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime/debug"
 	"strconv"
 	"sync/atomic"
@@ -81,10 +80,10 @@ type wsRespPb struct {
 
 type Client struct {
 	Id                    int //roomId
-	LastRoomDownsyncFrame *models.RoomDownsyncFrame
+	LastRoomDownsyncFrame *pb.RoomDownsyncFrame
 	BattleState           int
 	c                     *websocket.Conn
-	Player                *models.Player
+	Player                *pb.Player
 	CollidableWorld       *box2d.B2World
 	Barrier               map[int32]*models.Barrier
 	PlayerCollidableBody  *box2d.B2Body `json:"-"`
@@ -139,19 +138,12 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 		LastRoomDownsyncFrame: nil,
 		BattleState:           -1,
 		c:                     c,
-		Player:                &models.Player{Id: int32(playerId)},
+		Player:                &pb.Player{Id: int32(playerId)},
 		Barrier:               make(map[int32]*models.Barrier),
 		Radian:                math.Pi / 2,
 		Dir:                   models.Direction{Dx: 0, Dy: 1},
 		pathFinding:           new(models.PathFinding),
 	}
-
-	//初始化地图资源
-	tmx, _ := models.InitMapStaticResource("./map/map/pacman/map.tmx")
-	client.TmxIns = &tmx
-
-	collideMap := models.InitCollideMap(tmx.World, &tmx)
-	client.pathFinding.SetCollideMap(collideMap)
 
 	client.Started = false
 	killSignal := int32(0)
@@ -197,7 +189,8 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 				//log.Println("downsync reading err", err)
 			}
 
-			if resp.Act == "RoomDownsyncFrame" {
+			switch resp.Act {
+			case "RoomDownsyncFrame":
 				var respPb *wsRespPb
 				respPb = new(wsRespPb)
 				err := c.ReadJSON(respPb)
@@ -205,9 +198,31 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 					log.Println("Err unmarshalling respPb:", err)
 				}
 				client.decodeProtoBuf(respPb.Data)
-				//client.checkReFindPath() //kobako
-			} else {
-				//handleHbRequirements(resp)
+			case "HeartbeatRequirements":
+				var respPb *wsRespPb
+				respPb = new(wsRespPb)
+				err := c.ReadJSON(respPb)
+				if err != nil {
+					log.Println("Err unmarshalling respPb:", err)
+				}
+				var battleColliderInfo *pb.BattleColliderInfo
+				err = proto.Unmarshal(respPb.Data, battleColliderInfo)
+				if err != nil {
+					log.Println("Err unmarshalling data:", err)
+				}
+				//初始化地图资源
+				tmx := models.TmxMap{
+					Width:      int(battleColliderInfo.StageDiscreteW),
+					Height:     int(battleColliderInfo.StageDiscreteH),
+					TileWidth:  int(battleColliderInfo.StageTileW),
+					TileHeight: int(battleColliderInfo.StageTileH),
+				}
+				//tmx, _ := models.InitMapStaticResource("./map/map/pacman/map.tmx")
+				client.TmxIns = &tmx
+
+				collideMap := models.InitCollideMapNeo(&tmx, battleColliderInfo.StrToPolygon2DListMap)
+				client.pathFinding.SetCollideMap(collideMap)
+				client.playerBattleColliderAck()
 			}
 		}
 	}
@@ -547,9 +562,22 @@ func (client *Client) upsyncFrameData() {
 	}
 }
 
+func (client *Client) playerBattleColliderAck() {
+	req := &wsReq{
+		MsgId: 1,
+		Act:   "PlayerBattleColliderAck",
+	}
+	reqByte, err := json.Marshal(req)
+	err = client.c.WriteMessage(websocket.TextMessage, reqByte)
+	if err != nil {
+		log.Println("write:", err)
+		return
+	}
+}
+
 //kobako: 从下行帧解析宝物信息是否减少
 func (client *Client) decodeProtoBuf(message []byte) {
-	room_downsync_frame := models.RoomDownsyncFrame{}
+	room_downsync_frame := pb.RoomDownsyncFrame{}
 	err := proto.Unmarshal(message, &room_downsync_frame)
 	if err != nil {
 		fmt.Println("解析room_downsync_frame出错了!")
@@ -560,53 +588,6 @@ func (client *Client) decodeProtoBuf(message []byte) {
 	client.LastRoomDownsyncFrame = &room_downsync_frame
 	atomic.StoreInt32(client.BotSpeed, room_downsync_frame.Players[int32(client.Player.Id)].Speed)
 
-}
-
-//kobako: Hacked in and stored some info for path finding in the tmxIns
-func (client *Client) initMapStaticResource() models.TmxMap {
-
-	relativePath := "./map/map/treasurehunter.tmx"
-	execPath, err := os.Executable()
-	ErrFatal(err)
-
-	pwd, err := os.Getwd()
-	ErrFatal(err)
-
-	fmt.Printf("execPath = %v, pwd = %s, returning...\n", execPath, pwd)
-
-	tmxMapIns := models.TmxMap{}
-	pTmxMapIns := &tmxMapIns
-	fp := filepath.Join(pwd, relativePath)
-	fmt.Printf("fp == %v\n", fp)
-	if !filepath.IsAbs(fp) {
-		panic("Tmx filepath must be absolute!")
-	}
-
-	byteArr, err := ioutil.ReadFile(fp)
-	ErrFatal(err)
-	models.DeserializeToTmxMapIns(byteArr, pTmxMapIns)
-
-	tsxIns := models.Tsx{}
-	pTsxIns := &tsxIns
-	relativePath = "./map/map/tile_1.tsx"
-	fp = filepath.Join(pwd, relativePath)
-	fmt.Printf("fp == %v\n", fp)
-	if !filepath.IsAbs(fp) {
-		panic("Filepath must be absolute!")
-	}
-
-	byteArr, err = ioutil.ReadFile(fp)
-	ErrFatal(err)
-	models.DeserializeToTsxIns(byteArr, pTsxIns)
-
-	//kobako
-
-	fmt.Println("Barrier")
-	fmt.Println(client.Barrier)
-
-	//kobako
-
-	return tmxMapIns
 }
 
 func ErrFatal(err error) {
