@@ -367,7 +367,7 @@ func reFindPath(tmx *models.TmxMap, client *Client, excludeTreasureID map[int32]
 	//fmt.Printf("++++++ start point %v, end point %v\n", startPoint, endPoint)
 	//fmt.Printf("++++++ current point %v\n", client.pathFinding.CurrentCoord)
 	pointPath := client.pathFinding.FindPointPath(startPoint, endPoint)
-	//fmt.Printf("The point path: %v", pointPath)
+	fmt.Printf("The point path: %v\n", pointPath)
 
 	//将离散的路径转为连续坐标, 初始化walkInfo, 每次controller的时候调用
 	var path []models.Vec2D
@@ -488,25 +488,23 @@ func (client *Client) checkReFindPath() {
 	var excludeTreasureID map[int32]bool
 	// 防止server漏判吃草导致挂机
 	if !needReFindPath && atomic.LoadInt32(client.BotSpeed) > 0 &&
-		client.pathFinding.NextGoalIndex >= len(client.pathFinding.CoordPath) {
+		(client.pathFinding.NextGoalIndex >= len(client.pathFinding.CoordPath) || client.StayedCount > 20) {
 		//fmt.Println("prevent stop by not eat treasure")
-		excludeTreasureID := make(map[int32]bool, 10)
+		excludeTreasureID = make(map[int32]bool)
 		needReFindPath = true
 		excludeTreasureID[client.pathFinding.TargetTreasureId] = true
+		if client.StayedCount > 20 {
+			fmt.Println("prevent stop by StayedCount")
+			client.StayedCount = 0
+		}
 	}
 	//p.NextGoalIndex >= len(p.CoordPath)
 
-	if client.StayedCount > 20 {
-		//fmt.Println("prevent stop by StayedCount")
-		needReFindPath = true
-		client.StayedCount = 0
-	}
-
 	if needReFindPath {
-		reFindPath(client.TmxIns, client, nil)
+		reFindPath(client.TmxIns, client, excludeTreasureID)
 		retryCount := 0
 		if excludeTreasureID == nil {
-			excludeTreasureID = make(map[int32]bool, 10)
+			excludeTreasureID = make(map[int32]bool)
 		}
 		for retryCount < 5 && client.pathFinding.NextGoalIndex == -1 {
 			retryCount = retryCount + 1

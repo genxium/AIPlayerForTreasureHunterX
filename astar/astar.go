@@ -169,7 +169,7 @@ func AstarByStartAndGoalPoint(m Map, start Point, goal Point) []Point {
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		fmt.Println("path: ", path)
+		//fmt.Println("path: ", path)
 	}
 
 	//reverse

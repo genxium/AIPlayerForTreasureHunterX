@@ -26,8 +26,8 @@ type Point struct {
 func (m *TmxMap) GetCoordByGid(index int) (x float64, y float64) {
 	h := index / m.Width
 	w := index % m.Width
-	x = float64(w*m.TileWidth) + 0.5*float64(m.TileWidth)
-	y = float64(h*m.TileHeight) + 0.5*float64(m.TileHeight)
+	x = float64(w * m.TileWidth)
+	y = float64(h * m.TileHeight)
 	tmp := &Vec2D{x, y}
 	vec2 := m.continuousObjLayerVecToContinuousMapNodeVec(tmp)
 	return vec2.X, vec2.Y
