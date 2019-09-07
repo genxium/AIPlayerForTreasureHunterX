@@ -23,12 +23,6 @@ type Point struct {
 	Y int
 }
 
-type TmxData struct {
-	Encoding    string `xml:"encoding,attr"`
-	Compression string `xml:"compression,attr"`
-	Value       string `xml:",chardata"`
-}
-
 func (m *TmxMap) GetCoordByGid(index int) (x float64, y float64) {
 	h := index / m.Width
 	w := index % m.Width
