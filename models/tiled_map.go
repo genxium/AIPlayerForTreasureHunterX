@@ -23,19 +23,6 @@ type Point struct {
 	Y int
 }
 
-type TreasuresInfo struct {
-	InitPos Vec2D
-	Type    int32
-	Score   int32
-	//DiscretePos Point
-	DiscretePos Point
-}
-
-type SpeedShoesInfo struct {
-	InitPos Vec2D
-	Type    int32
-}
-
 type TmxData struct {
 	Encoding    string `xml:"encoding,attr"`
 	Compression string `xml:"compression,attr"`
@@ -141,110 +128,6 @@ func FindPathByStartAndGoal(collideMap astar.Map, start astar.Point, goal astar.
 	return path
 }
 
-/*
-func ComputeColliderMapByCollision2d(pTmxMapIns *TmxMap) []int {
-	var barrierLayerName string = "barrier"
-
-	for _, objGroup := range pTmxMapIns.ObjectGroups {
-
-		//fmt.Printf("objGroupName: %v \n", objGroup.Name)
-
-		if barrierLayerName == objGroup.Name {
-			//fmt.Printf("objGroup: %v \n", objGroup)
-			barrierList := make([]collision2d.Polygon, len(objGroup.Objects))
-			barrierCounter := 0
-			for _, obj := range objGroup.Objects {
-
-				initPos := Vec2D{
-					X: obj.X,
-					Y: obj.Y,
-				}
-
-				//Init Polygon body
-				singleValueArray := strings.Split(obj.Polyline.Points, " ")
-				pointsArrayWrtInit := make([]Vec2D, len(singleValueArray))
-
-
-				for key, value := range singleValueArray {
-					for k, v := range strings.Split(value, ",") {
-						n, err := strconv.ParseFloat(v, 64)
-						if err != nil {
-							fmt.Printf("ERRRRRRRRRR!!!!!!!! parse float %f \n" + value)
-							panic(err)
-							//return err
-						}
-						if k%2 == 0 {
-							pointsArrayWrtInit[key].X = n + initPos.X
-						} else {
-							pointsArrayWrtInit[key].Y = n + initPos.Y
-						}
-					}
-				}
-
-				//fmt.Printf("PointsArrayWrtInit: %v \n", pointsArrayWrtInit)
-
-				pointsArrayTransted := make([]*Vec2D, len(pointsArrayWrtInit))
-				pointList := make([]float64, len(singleValueArray) * 2)
-				{
-					var scale float64 = 1.0
-					for key, value := range pointsArrayWrtInit {
-
-						vec := pTmxMapIns.continuousObjLayerVecToContinuousMapNodeVec(&Vec2D{
-							X: value.X * scale,
-							Y: value.Y * scale,
-						})
-						pointsArrayTransted[key] = &vec
-						pointList[2 * key] = vec.X
-						pointList[2 * key + 1] = vec.Y
-
-						//fmt.Printf("PointsArrayTransted: %v \n", vec)
-					}
-				}
-
-				{
-					//CreateBody
-					pos := collision2d.NewVector(0.0, 0.0)
-    				offset := collision2d.NewVector(0.0, 0.0)
-    				angle := 0.0
-					polygon := collision2d.NewPolygon(pos, offset, angle, pointList[:])
-
-					barrierList[barrierCounter] = polygon
-					barrierCounter++
-					//log.Printf("barrier %v: %v \n", barrierCounter, polygon.Points)
-				}
-			}
-
-			width := pTmxMapIns.Width
-			height := pTmxMapIns.Height
-
-			collideMap := make([]int, width*height)
-
-			playerCircle := collision2d.Circle{collision2d.Vector{0, 0}, 12}
-
-			for k, _ := range collideMap {
-				x, y := pTmxMapIns.GetCoordByGid(k)
-
-				playerCircle.Pos = collision2d.NewVector(x, y)
-
-				for _, barrier := range barrierList {
-					result, _ := collision2d.TestPolygonCircle(barrier, playerCircle)
-					if result {
-						collideMap[k] = 1
-						break
-					}
-				}
-			}
-
-			log.Printf("collideMap %v ", collideMap)
-			return collideMap
-		}
-	}
-
-	return nil
-}
-
-*/
-
 func ComputeColliderMapByCollision2dNeo(strToPolygon2DListMap map[string]*pb.Polygon2DList, pTmxMapIns *TmxMap) []int {
 	barrierGroup := strToPolygon2DListMap["Barrier"]
 	barrierList := make([]collision2d.Polygon, len(barrierGroup.Polygon2DList))
@@ -290,13 +173,6 @@ func ComputeColliderMapByCollision2dNeo(strToPolygon2DListMap map[string]*pb.Pol
 	log.Printf("collideMap %v ", collideMap)
 	return collideMap
 }
-
-/*根据world里的collidableBody信息初始化一个离散的二维数组, 0为可通行区域, 1为障碍物
-func InitCollideMap(world *box2d.B2World, pTmx *TmxMap) astar.Map {
-	return astar.AstarArrayToMap(ComputeColliderMapByCollision2d(pTmx), pTmx.Width, pTmx.Height)
-}
-
-*/
 
 func InitCollideMapNeo(pTmx *TmxMap, strToPolygon2DListMap map[string]*pb.Polygon2DList) astar.Map {
 	return astar.AstarArrayToMap(ComputeColliderMapByCollision2dNeo(strToPolygon2DListMap, pTmx), pTmx.Width, pTmx.Height)
