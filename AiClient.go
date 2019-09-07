@@ -108,7 +108,8 @@ type Client struct {
 	pathFinding *models.PathFinding
 	Started     bool
 
-	BotSpeed *int32
+	BotSpeed    *int32
+	StayedCount int
 }
 
 func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager) {
@@ -150,6 +151,7 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 		Radian:                math.Pi / 2,
 		Dir:                   models.Direction{Dx: 0, Dy: 1},
 		pathFinding:           new(models.PathFinding),
+		StayedCount:           0,
 	}
 
 	client.Started = false
@@ -227,7 +229,7 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 				//tmx, _ := models.InitMapStaticResource("./map/map/pacman/map.tmx")
 				client.TmxIns = &tmx
 
-				log.Println("collideMap init")
+				log.Println("collideMap init", tmx)
 				collideMap := models.InitCollideMapNeo(&tmx, battleColliderInfo.StrToPolygon2DListMap)
 				client.pathFinding.SetCollideMap(collideMap)
 				client.playerBattleColliderAck()
@@ -362,9 +364,10 @@ func reFindPath(tmx *models.TmxMap, client *Client, excludeTreasureID map[int32]
 
 	//fmt.Printf("NEW END POINT %v , NEW TID %d \n", endPoint, client.pathFinding.TargetTreasureId)
 
-	fmt.Printf("++++++ start point %v, end point %v\n", startPoint, endPoint)
+	//fmt.Printf("++++++ start point %v, end point %v\n", startPoint, endPoint)
+	//fmt.Printf("++++++ current point %v\n", client.pathFinding.CurrentCoord)
 	pointPath := client.pathFinding.FindPointPath(startPoint, endPoint)
-	fmt.Printf("The point path: %v", pointPath)
+	//fmt.Printf("The point path: %v", pointPath)
 
 	//将离散的路径转为连续坐标, 初始化walkInfo, 每次controller的时候调用
 	var path []models.Vec2D
@@ -465,14 +468,14 @@ func (client *Client) initTreasureAndPlayers() {
 
 func (client *Client) checkReFindPath() {
 	// 仅当 (当前帧的宝物数量比上一帧少 && 目标宝物id被吃掉)  的时候重新寻路
-	if client.LastRoomDownsyncFrame == nil {
+	if client.LastRoomDownsyncFrame == nil || client.LastRoomDownsyncFrame.RefFrameId == 0 || client.BattleState != IN_BATTLE {
 		return
 	}
-	if client.LastRoomDownsyncFrame.RefFrameId != 0 && len(client.LastRoomDownsyncFrame.Treasures) != client.LastFrameRemovedTreasureNum {
+	var needReFindPath = false
+	if len(client.LastRoomDownsyncFrame.Treasures) != client.LastFrameRemovedTreasureNum {
 		//fmt.Printf("last number %d, now number %d \n", client.LastFrameRemovedTreasureNum, len(client.LastRoomDownsyncFrame.Treasures))
 		client.LastFrameRemovedTreasureNum = len(client.LastRoomDownsyncFrame.Treasures)
 
-		var needReFindPath bool
 		for id, _ := range client.LastRoomDownsyncFrame.Treasures {
 			//删除以减轻后续最短距离计算量
 			delete(client.pathFinding.TreasureMap, id)
@@ -480,31 +483,36 @@ func (client *Client) checkReFindPath() {
 				needReFindPath = true
 			}
 		}
+	}
 
-		var excludeTreasureID map[int32]bool
-		// 防止server漏判吃草导致挂机
-		if !needReFindPath && atomic.LoadInt32(client.BotSpeed) > 0 &&
-			client.pathFinding.NextGoalIndex >= len(client.pathFinding.CoordPath) {
-			excludeTreasureID := make(map[int32]bool, 10)
-			needReFindPath = true
+	var excludeTreasureID map[int32]bool
+	// 防止server漏判吃草导致挂机
+	if !needReFindPath && atomic.LoadInt32(client.BotSpeed) > 0 &&
+		client.pathFinding.NextGoalIndex >= len(client.pathFinding.CoordPath) {
+		//fmt.Println("prevent stop by not eat treasure")
+		excludeTreasureID := make(map[int32]bool, 10)
+		needReFindPath = true
+		excludeTreasureID[client.pathFinding.TargetTreasureId] = true
+	}
+	//p.NextGoalIndex >= len(p.CoordPath)
+
+	if client.StayedCount > 20 {
+		//fmt.Println("prevent stop by StayedCount")
+		needReFindPath = true
+		client.StayedCount = 0
+	}
+
+	if needReFindPath {
+		reFindPath(client.TmxIns, client, nil)
+		retryCount := 0
+		if excludeTreasureID == nil {
+			excludeTreasureID = make(map[int32]bool, 10)
+		}
+		for retryCount < 5 && client.pathFinding.NextGoalIndex == -1 {
+			retryCount = retryCount + 1
 			excludeTreasureID[client.pathFinding.TargetTreasureId] = true
+			reFindPath(client.TmxIns, client, excludeTreasureID)
 		}
-		//p.NextGoalIndex >= len(p.CoordPath)
-
-		if needReFindPath {
-			reFindPath(client.TmxIns, client, nil)
-			retryCount := 0
-			if excludeTreasureID == nil {
-				excludeTreasureID = make(map[int32]bool, 10)
-			}
-			for retryCount < 5 && client.pathFinding.NextGoalIndex == -1 {
-				retryCount = retryCount + 1
-				excludeTreasureID[client.pathFinding.TargetTreasureId] = true
-				reFindPath(client.TmxIns, client, excludeTreasureID)
-			}
-		}
-	} else {
-		//Do nothing
 	}
 }
 
@@ -532,6 +540,11 @@ func (client *Client) controller() {
 
 func pathFindingMove(client *Client, step float64) {
 	client.pathFinding.Move(step)
+	if client.BattleState == IN_BATTLE &&
+		client.Player.X == client.pathFinding.CurrentCoord.X &&
+		client.Player.Y == client.pathFinding.CurrentCoord.Y {
+		client.StayedCount++
+	}
 	client.Player.X = client.pathFinding.CurrentCoord.X
 	client.Player.Y = client.pathFinding.CurrentCoord.Y
 	client.pathFinding.SetCurrentCoord(client.Player.X, client.Player.Y)

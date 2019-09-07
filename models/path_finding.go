@@ -109,6 +109,7 @@ func (p *PathFinding) FindPointPath(startPoint astar.Point, endPoint astar.Point
 }
 
 func (p *PathFinding) SetNewCoordPath(coordPath []Vec2D) {
+	//fmt.Printf("Set new coord path: %v", coordPath)
 	p.CoordPath = coordPath
 	if len(coordPath) < 1 {
 		fmt.Println("There is no path to the goal")
