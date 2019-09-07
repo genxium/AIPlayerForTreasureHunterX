@@ -71,6 +71,13 @@ type wsResp struct {
 	Data        json.RawMessage `json:"data,omitempty"`
 }
 
+type HeartbeatRequirementsData struct {
+	IntervalToPing        int    `json:"intervalToPing"`
+	WillKickIfInactiveFor int    `json:"willKickIfInactiveFor"`
+	BoundRoomId           int    `json:"boundRoomId"`
+	BattleColliderInfo    []byte `json:"battleColliderInfo"`
+}
+
 type wsRespPb struct {
 	Ret         int32  `json:"ret,omitempty"`
 	EchoedMsgId int32  `json:"echoedMsgId,omitempty"`
@@ -186,7 +193,7 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 			resp = new(wsResp)
 			err := c.ReadJSON(resp)
 			if err != nil {
-				//log.Println("downsync reading err", err)
+				log.Println("websocket read json err", err)
 			}
 
 			switch resp.Act {
@@ -195,18 +202,18 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 				respPb = new(wsRespPb)
 				err := c.ReadJSON(respPb)
 				if err != nil {
-					log.Println("Err unmarshalling respPb:", err)
+					log.Println("Err unmarshalling downsync respPb:", err)
 				}
 				client.decodeProtoBuf(respPb.Data)
 			case "HeartbeatRequirements":
-				var respPb *wsRespPb
-				respPb = new(wsRespPb)
-				err := c.ReadJSON(respPb)
+				var respPb *HeartbeatRequirementsData
+				respPb = new(HeartbeatRequirementsData)
+				err := json.Unmarshal(resp.Data, respPb)
 				if err != nil {
-					log.Println("Err unmarshalling respPb:", err)
+					log.Println("Err unmarshalling heartbeat respPb:", err)
 				}
-				var battleColliderInfo *pb.BattleColliderInfo
-				err = proto.Unmarshal(respPb.Data, battleColliderInfo)
+				var battleColliderInfo pb.BattleColliderInfo
+				err = proto.Unmarshal(respPb.BattleColliderInfo, &battleColliderInfo)
 				if err != nil {
 					log.Println("Err unmarshalling data:", err)
 				}
@@ -220,6 +227,7 @@ func spawnBot(botName string, expectedRoomId int, botManager *models.BotManager)
 				//tmx, _ := models.InitMapStaticResource("./map/map/pacman/map.tmx")
 				client.TmxIns = &tmx
 
+				log.Println("collideMap init")
 				collideMap := models.InitCollideMapNeo(&tmx, battleColliderInfo.StrToPolygon2DListMap)
 				client.pathFinding.SetCollideMap(collideMap)
 				client.playerBattleColliderAck()
@@ -577,16 +585,14 @@ func (client *Client) playerBattleColliderAck() {
 
 //kobako: 从下行帧解析宝物信息是否减少
 func (client *Client) decodeProtoBuf(message []byte) {
-	room_downsync_frame := pb.RoomDownsyncFrame{}
-	err := proto.Unmarshal(message, &room_downsync_frame)
+	roomDownSyncFrame := pb.RoomDownsyncFrame{}
+	err := proto.Unmarshal(message, &roomDownSyncFrame)
 	if err != nil {
 		fmt.Println("解析room_downsync_frame出错了!")
 		log.Panic(err)
-	} else {
-
 	}
-	client.LastRoomDownsyncFrame = &room_downsync_frame
-	atomic.StoreInt32(client.BotSpeed, room_downsync_frame.Players[int32(client.Player.Id)].Speed)
+	client.LastRoomDownsyncFrame = &roomDownSyncFrame
+	atomic.StoreInt32(client.BotSpeed, roomDownSyncFrame.Players[int32(client.Player.Id)].Speed)
 
 }
 

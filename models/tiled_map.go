@@ -252,8 +252,8 @@ func ComputeColliderMapByCollision2dNeo(strToPolygon2DListMap map[string]*pb.Pol
 	for _, polygon := range barrierGroup.Polygon2DList {
 		pointList := make([]float64, len(polygon.Points)*2)
 		for index, val := range polygon.Points {
-			pointList[2*index] = val.X
-			pointList[2*index+1] = val.Y
+			pointList[2*index] = val.X + polygon.Anchor.X
+			pointList[2*index+1] = val.Y + polygon.Anchor.Y
 		}
 
 		//CreateBody
