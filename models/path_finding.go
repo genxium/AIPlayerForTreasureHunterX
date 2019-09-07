@@ -2,49 +2,49 @@ package models
 
 import (
 	"AI/astar"
-	"math"
 	"fmt"
+	"math"
 )
 
 //寻路的抽象
 
 //States
 const (
-  UnReady = 0
-  CollideMapPrepared = 1
-  TreasureMapPrepared = 2
+	UnReady             = 0
+	CollideMapPrepared  = 1
+	TreasureMapPrepared = 2
 )
 
 type PathFinding struct {
-	CollideMap astar.Map
-	CurrentCoord Vec2D //当前玩家坐标
-	CoordPath []Vec2D //离散的路径转换成连续路径
-	PointPath []astar.Point //寻路得到的离散路径
-	NextGoalIndex int //-1表示没有下一个可走的点
-	TreasureMap map[int32]Point //id -> point of position
-  TargetTreasureId int32 //用于判断这个宝物是否已经被吃掉
+	CollideMap       astar.Map
+	CurrentCoord     Vec2D           //当前玩家坐标
+	CoordPath        []Vec2D         //离散的路径转换成连续路径
+	PointPath        []astar.Point   //寻路得到的离散路径
+	NextGoalIndex    int             //-1表示没有下一个可走的点
+	TreasureMap      map[int32]Point //id -> point of position
+	TargetTreasureId int32           //用于判断这个宝物是否已经被吃掉
 
-  State int
+	State int
 }
 
-func (p *PathFinding) transitState(state int){
-  fmt.Printf("PathFinding transit, from state%d to state%d \n", p.State, state)
-  p.State = state
+func (p *PathFinding) transitState(state int) {
+	fmt.Printf("PathFinding transit, from state%d to state%d \n", p.State, state)
+	p.State = state
 }
 
-func (p *PathFinding) SetCollideMap(collideMap astar.Map){
-  p.CollideMap = collideMap
-  p.transitState(CollideMapPrepared)
+func (p *PathFinding) SetCollideMap(collideMap astar.Map) {
+	p.CollideMap = collideMap
+	p.transitState(CollideMapPrepared)
 }
 
-func (p *PathFinding) SetTreasureMap(treasureDiscreteMap map[int32]Point){
-  p.TreasureMap = treasureDiscreteMap
-  p.transitState(TreasureMapPrepared)
+func (p *PathFinding) SetTreasureMap(treasureDiscreteMap map[int32]Point) {
+	p.TreasureMap = treasureDiscreteMap
+	p.transitState(TreasureMapPrepared)
 }
 
-func (p *PathFinding) Move(step float64){
-	if p.NextGoalIndex >= len(p.CoordPath) {
-    //已经移动到最后一个点
+func (p *PathFinding) Move(step float64) {
+	if p.NextGoalIndex >= len(p.CoordPath) || p.NextGoalIndex == -1 {
+		//已经移动到最后一个点
 	} else {
 		eps := step / 2
 
@@ -92,36 +92,33 @@ func (p *PathFinding) Move(step float64){
 			p.CurrentCoord = tarPos
 			p.NextGoalIndex = p.NextGoalIndex + 1
 		} else {
-      p.CurrentCoord = nextPos
+			p.CurrentCoord = nextPos
 		}
 	}
 }
 
-func (p *PathFinding) SetCurrentCoord(x float64, y float64){
-  p.CurrentCoord.X = x
-  p.CurrentCoord.Y = y
+func (p *PathFinding) SetCurrentCoord(x float64, y float64) {
+	p.CurrentCoord.X = x
+	p.CurrentCoord.Y = y
 }
 
-
-func (p *PathFinding) FindPointPath(startPoint astar.Point, endPoint astar.Point) []astar.Point{
-  p.PointPath = FindPathByStartAndGoal(p.CollideMap, startPoint, endPoint)
+func (p *PathFinding) FindPointPath(startPoint astar.Point, endPoint astar.Point) []astar.Point {
+	p.PointPath = FindPathByStartAndGoal(p.CollideMap, startPoint, endPoint)
 	//fmt.Printf("The point path: %v \n", p.PointPath)
-  return p.PointPath
+	return p.PointPath
 }
 
-func (p *PathFinding) SetNewCoordPath(coordPath []Vec2D){
-  p.CoordPath = coordPath
+func (p *PathFinding) SetNewCoordPath(coordPath []Vec2D) {
+	p.CoordPath = coordPath
 	if len(coordPath) < 1 {
 		fmt.Println("There is no path to the goal")
-    p.NextGoalIndex = -1
+		p.NextGoalIndex = -1
 	} else {
-    p.NextGoalIndex = 1 //不为0的原因是0为当前坐标
+		p.NextGoalIndex = 1 //不为0的原因是0为当前坐标
 	}
 }
 
-func (p *PathFinding) UpdateTargetTreasureId(id int32){
-  //fmt.Printf("目标宝物%d被吃掉了, 换个新的目标%d \n", p.TargetTreasureId, id)
-  p.TargetTreasureId = id
+func (p *PathFinding) UpdateTargetTreasureId(id int32) {
+	//fmt.Printf("目标宝物%d被吃掉了, 换个新的目标%d \n", p.TargetTreasureId, id)
+	p.TargetTreasureId = id
 }
-
-
