@@ -3,6 +3,7 @@ module AI
 require (
 	github.com/ByteArena/box2d v1.0.2
 	github.com/Masterminds/squirrel v1.1.0
+	github.com/Tarliton/collision2d v0.0.0-20160527013055-f7a088279920
 	github.com/deckarep/golang-set v1.7.1
 	github.com/gin-contrib/sse v0.0.0-20190301062529-5545eab6dad3 // indirect
 	github.com/gin-gonic/gin v1.3.0

@@ -6,6 +6,6 @@ node_modules/*
 *.swo
 *.swp
 *.sqlite
-**/*kobako*
 **/.DS_Store
 AI
+*.pid
